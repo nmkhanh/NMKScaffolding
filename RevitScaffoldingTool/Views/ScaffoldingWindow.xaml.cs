@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using System.Windows;
+using RevitScaffoldingTool.ViewModels;
 
 namespace RevitScaffoldingTool.Views
 {
@@ -7,6 +9,12 @@ namespace RevitScaffoldingTool.Views
         public ScaffoldingWindow()
         {
             InitializeComponent();
+        }
+
+        protected override void OnClosing(CancelEventArgs e)
+        {
+            base.OnClosing(e);
+            (DataContext as ScaffoldingViewModel)?.SaveSettings();
         }
     }
 }

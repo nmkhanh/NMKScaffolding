@@ -7,6 +7,7 @@ using Autodesk.Revit.UI.Selection;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Revit.Async;
+using AppSettings = RevitScaffoldingTool.Properties.Settings;
 
 namespace RevitScaffoldingTool.ViewModels
 {
@@ -14,10 +15,10 @@ namespace RevitScaffoldingTool.ViewModels
     {
         private readonly UIApplication _uiApp;
 
-        // Vị trí & Cao độ Z
+        // Vị trí, Chân chống & Cao độ Z
         [ObservableProperty] private double _elevationZ = 0.0;
-        [ObservableProperty] private double _bayWidth = 1200.0;
         [ObservableProperty] private double _jackHeight = 250.0;
+        [ObservableProperty] private double _bayWidth = 1200.0;
         [ObservableProperty] private string _familyFolder = @"H:\My Drive\Family\New folder\Child";
 
         // 6 ô cấu hình cột chống từ dưới lên trên (mặc định = 0)
@@ -32,6 +33,9 @@ namespace RevitScaffoldingTool.ViewModels
         [ObservableProperty] private int _storyCount = 1;
         [ObservableProperty] private bool _hasTopTransom = false;
 
+        // Tùy chọn chạy theo dữ liệu nhập (From data)
+        [ObservableProperty] private bool _isFromData = false;
+
         // Trạng thái thực thi
         [ObservableProperty] private string _statusMessage = "Sẵn sàng thi công giàn giáo ALINCO.";
         [ObservableProperty] private bool _isBusy = false;
@@ -39,28 +43,103 @@ namespace RevitScaffoldingTool.ViewModels
         public ScaffoldingViewModel(UIApplication uiApp)
         {
             _uiApp = uiApp;
+            LoadSettings();
+        }
+
+        public void LoadSettings()
+        {
+            try
+            {
+                var s = AppSettings.Default;
+                ElevationZ = s.ElevationZ;
+                JackHeight = s.JackHeight > 0 ? s.JackHeight : 250.0;
+                Post1Height = s.Post1Height;
+                Post2Height = s.Post2Height;
+                Post3Count = s.Post3Count;
+                Post3Height = s.Post3Height;
+                Post4Height = s.Post4Height;
+                Post5Height = s.Post5Height;
+                StoryCount = s.StoryCount > 0 ? s.StoryCount : 1;
+                HasTopTransom = s.HasTopTransom;
+                IsFromData = s.IsFromData;
+            }
+            catch
+            {
+                // Fallback nếu settings lần đầu chưa khởi tạo
+            }
+        }
+
+        public void SaveSettings()
+        {
+            try
+            {
+                var s = AppSettings.Default;
+                s.ElevationZ = ElevationZ;
+                s.JackHeight = JackHeight;
+                s.Post1Height = Post1Height;
+                s.Post2Height = Post2Height;
+                s.Post3Count = Post3Count;
+                s.Post3Height = Post3Height;
+                s.Post4Height = Post4Height;
+                s.Post5Height = Post5Height;
+                s.StoryCount = StoryCount;
+                s.HasTopTransom = HasTopTransom;
+                s.IsFromData = IsFromData;
+                s.Save();
+            }
+            catch
+            {
+            }
         }
 
         private BuildOptions CreateOptions(int mode)
         {
-            return new BuildOptions
+            SaveSettings();
+
+            if (!IsFromData)
             {
-                X0 = 0.0,
-                Y0 = 0.0,
-                Z0 = ElevationZ,
-                BayWidth = BayWidth > 0 ? BayWidth : 1200.0,
-                JackHeight = JackHeight > 0 ? JackHeight : 250.0,
-                FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
-                Mode = mode,
-                Post1Height = Post1Height,
-                Post2Height = Post2Height,
-                Post3Count = Post3Count,
-                Post3Height = Post3Height,
-                Post4Height = Post4Height,
-                Post5Height = Post5Height,
-                StoryCount = StoryCount > 0 ? StoryCount : 1,
-                HasTopTransom = HasTopTransom
-            };
+                // Chế độ Default (không dùng data nhập, chạy chuẩn 100% theo milestone kiểm chứng)
+                return new BuildOptions
+                {
+                    X0 = 0.0,
+                    Y0 = 0.0,
+                    Z0 = 0.0,
+                    BayWidth = 1200.0,
+                    JackHeight = 250.0,
+                    FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
+                    Mode = mode,
+                    Post1Height = 0,
+                    Post2Height = 0,
+                    Post3Count = 0,
+                    Post3Height = 0,
+                    Post4Height = 0,
+                    Post5Height = 0,
+                    StoryCount = 1,
+                    HasTopTransom = false
+                };
+            }
+            else
+            {
+                // Chế độ From Data (chạy với toàn bộ dữ liệu cấu hình trên UI)
+                return new BuildOptions
+                {
+                    X0 = 0.0,
+                    Y0 = 0.0,
+                    Z0 = ElevationZ,
+                    BayWidth = BayWidth > 0 ? BayWidth : 1200.0,
+                    JackHeight = JackHeight > 0 ? JackHeight : 250.0,
+                    FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
+                    Mode = mode,
+                    Post1Height = Post1Height,
+                    Post2Height = Post2Height,
+                    Post3Count = Post3Count,
+                    Post3Height = Post3Height,
+                    Post4Height = Post4Height,
+                    Post5Height = Post5Height,
+                    StoryCount = StoryCount > 0 ? StoryCount : 1,
+                    HasTopTransom = HasTopTransom
+                };
+            }
         }
 
         [RelayCommand]
@@ -82,7 +161,6 @@ namespace RevitScaffoldingTool.ViewModels
                         Reference faceRef = uidoc.Selection.PickObject(ObjectType.Face, "Chọn mặt phẳng (Face) để lấy cao độ Z");
                         if (faceRef != null)
                         {
-                            // GlobalPoint trả về tọa độ điểm click thực tế trong không gian Revit (feet)
                             XYZ pt = faceRef.GlobalPoint;
                             return pt.Z * 304.8; // Đổi sang mm
                         }
@@ -97,6 +175,7 @@ namespace RevitScaffoldingTool.ViewModels
                 if (pickedZ.HasValue)
                 {
                     ElevationZ = Math.Round(pickedZ.Value, 1);
+                    SaveSettings();
                     StatusMessage = string.Format("Đã lấy cao độ Z từ Face: {0:F1} mm", ElevationZ);
                 }
                 else
@@ -118,7 +197,8 @@ namespace RevitScaffoldingTool.ViewModels
         {
             if (IsBusy) return;
             IsBusy = true;
-            StatusMessage = "Đang thi công: " + modeName + "...";
+            string runType = IsFromData ? "[From Data]" : "[Default]";
+            StatusMessage = string.Format("Đang thi công {0}: {1}...", runType, modeName);
 
             try
             {
@@ -133,7 +213,7 @@ namespace RevitScaffoldingTool.ViewModels
                     return ScaffoldingBuilder.ExecuteBuild(doc, opts);
                 });
 
-                StatusMessage = res.Message;
+                StatusMessage = string.Format("{0} — {1}", runType, res.Message);
             }
             catch (Exception ex)
             {

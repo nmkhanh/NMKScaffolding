@@ -26,5 +26,6 @@
     <Reference Include="C:\Program Files\Autodesk\Revit 2022\RevitAPIUI.dll">
       <Private>false</Private>
     </Reference>
+    <Reference Include="System.Configuration" />
   </ItemGroup>
 </Project>
