@@ -1,0 +1,6 @@
+bin/
+obj/
+RevitScaffoldingTool/obj/
+*.user
+*.suo
+.vs/

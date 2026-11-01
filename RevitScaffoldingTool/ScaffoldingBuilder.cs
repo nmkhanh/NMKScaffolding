@@ -18,6 +18,15 @@ namespace RevitScaffoldingTool
         public int Mode { get; set; } // -1: Dãy thẳng nhiều nhịp, -2: Trường hợp 1.1 (Khớp nối góc 90° +Y)
         public string FamilyFolder { get; set; }
 
+        public double Post1Height { get; set; }
+        public double Post2Height { get; set; }
+        public int Post3Count { get; set; }
+        public double Post3Height { get; set; }
+        public double Post4Height { get; set; }
+        public double Post5Height { get; set; }
+        public int StoryCount { get; set; }
+        public bool HasTopTransom { get; set; }
+
         public BuildOptions()
         {
             X0 = 0;
@@ -28,6 +37,14 @@ namespace RevitScaffoldingTool
             BayLengths = new List<double> { 1800, 1200, 1800, 1200, 1800 };
             Mode = -1;
             FamilyFolder = @"H:\My Drive\Family\New folder\Child";
+            Post1Height = 0;
+            Post2Height = 0;
+            Post3Count = 0;
+            Post3Height = 0;
+            Post4Height = 0;
+            Post5Height = 0;
+            StoryCount = 1;
+            HasTopTransom = false;
         }
     }
 
@@ -2127,6 +2144,124 @@ namespace RevitScaffoldingTool
             for (int i = 8; i <= 15; i++) SetParam(inst, "h" + i, 0);
         }
 
+        private static void ConfigureAlincoColumn(FamilyInstance inst, double height)
+        {
+            SetParam(inst, "h", height);
+            int hInt = (int)Math.Round(height);
+            switch (hInt)
+            {
+                case 225:
+                    SetParam(inst, "h1", 155);
+                    for (int i = 2; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    break;
+                case 450:
+                    SetParam(inst, "h1", 135);
+                    SetParam(inst, "h2", 380);
+                    for (int i = 3; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    break;
+                case 675:
+                    SetParam(inst, "h1", 155);
+                    SetParam(inst, "h2", 380);
+                    SetParam(inst, "h3", 605);
+                    for (int i = 4; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    break;
+                case 900:
+                    SetParam(inst, "h1", 135);
+                    SetParam(inst, "h2", 380);
+                    SetParam(inst, "h3", 830);
+                    for (int i = 4; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    break;
+                case 1350:
+                    SetParam(inst, "h1", 135);
+                    SetParam(inst, "h2", 380);
+                    SetParam(inst, "h3", 830);
+                    SetParam(inst, "h4", 1280);
+                    for (int i = 5; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    break;
+                case 1800:
+                    SetParam(inst, "h1", 380);
+                    SetParam(inst, "h2", 830);
+                    SetParam(inst, "h3", 1280);
+                    SetParam(inst, "h4", 1730);
+                    for (int i = 5; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    break;
+                case 2700:
+                    ConfigureAlinco2700(inst);
+                    break;
+                case 3600:
+                    SetParam(inst, "h1", 380);
+                    SetParam(inst, "h2", 830);
+                    SetParam(inst, "h3", 1280);
+                    SetParam(inst, "h4", 1730);
+                    SetParam(inst, "h5", 2180);
+                    SetParam(inst, "h6", 2630);
+                    SetParam(inst, "h7", 3080);
+                    SetParam(inst, "h8", 3530);
+                    for (int i = 9; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    break;
+                default:
+                    SetParam(inst, "h1", 135);
+                    int idx = 2;
+                    double zRos = 380;
+                    while (zRos < height && idx <= 15)
+                    {
+                        SetParam(inst, "h" + idx, zRos);
+                        zRos += 450;
+                        idx++;
+                    }
+                    for (int i = idx; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    break;
+            }
+        }
+
+        private static void PlaceConfiguredPosts(Document doc, FamilySymbol sym3, Level level, List<int> placedIds, double cx, double cy, double baseZ, BuildOptions opts)
+        {
+            if (sym3 == null) return;
+            bool hasCustomPosts = opts != null && (opts.Post1Height > 0 || opts.Post2Height > 0 || (opts.Post3Count > 0 && opts.Post3Height > 0) || opts.Post4Height > 0 || opts.Post5Height > 0);
+
+            if (!hasCustomPosts)
+            {
+                var col = PlaceInstance(doc, sym3, level, new XYZ(MmToFt(cx), MmToFt(cy), MmToFt(baseZ)), 0, null, 0);
+                if (col != null) { ConfigureAlinco2700(col); placedIds.Add(col.Id.IntegerValue); }
+                return;
+            }
+
+            double curZ = baseZ;
+            if (opts.Post1Height > 0)
+            {
+                var col = PlaceInstance(doc, sym3, level, new XYZ(MmToFt(cx), MmToFt(cy), MmToFt(curZ)), 0, "h", opts.Post1Height);
+                if (col != null) { ConfigureAlincoColumn(col, opts.Post1Height); placedIds.Add(col.Id.IntegerValue); }
+                curZ += opts.Post1Height;
+            }
+            if (opts.Post2Height > 0)
+            {
+                var col = PlaceInstance(doc, sym3, level, new XYZ(MmToFt(cx), MmToFt(cy), MmToFt(curZ)), 0, "h", opts.Post2Height);
+                if (col != null) { ConfigureAlincoColumn(col, opts.Post2Height); placedIds.Add(col.Id.IntegerValue); }
+                curZ += opts.Post2Height;
+            }
+            if (opts.Post3Height > 0 && opts.Post3Count > 0)
+            {
+                for (int i = 0; i < opts.Post3Count; i++)
+                {
+                    var col = PlaceInstance(doc, sym3, level, new XYZ(MmToFt(cx), MmToFt(cy), MmToFt(curZ)), 0, "h", opts.Post3Height);
+                    if (col != null) { ConfigureAlincoColumn(col, opts.Post3Height); placedIds.Add(col.Id.IntegerValue); }
+                    curZ += opts.Post3Height;
+                }
+            }
+            if (opts.Post4Height > 0)
+            {
+                var col = PlaceInstance(doc, sym3, level, new XYZ(MmToFt(cx), MmToFt(cy), MmToFt(curZ)), 0, "h", opts.Post4Height);
+                if (col != null) { ConfigureAlincoColumn(col, opts.Post4Height); placedIds.Add(col.Id.IntegerValue); }
+                curZ += opts.Post4Height;
+            }
+            if (opts.Post5Height > 0)
+            {
+                var col = PlaceInstance(doc, sym3, level, new XYZ(MmToFt(cx), MmToFt(cy), MmToFt(curZ)), 0, "h", opts.Post5Height);
+                if (col != null) { ConfigureAlincoColumn(col, opts.Post5Height); placedIds.Add(col.Id.IntegerValue); }
+                curZ += opts.Post5Height;
+            }
+        }
+
         private static void ActivateSymbol(Document doc, FamilySymbol sym)
         {
             if (!sym.IsActive)
@@ -2235,8 +2370,7 @@ namespace RevitScaffoldingTool
                     var jk = PlaceInstance(doc, sym2, level, new XYZ(MmToFt(cx), MmToFt(cy), MmToFt(z0)), 0, "h", jackH);
                     if (jk != null) placedIds.Add(jk.Id.IntegerValue);
 
-                    var col = PlaceInstance(doc, sym3, level, new XYZ(MmToFt(cx), MmToFt(cy), MmToFt(z0 + jackH)), 0, null, 0);
-                    if (col != null) { ConfigureAlinco2700(col); placedIds.Add(col.Id.IntegerValue); }
+                    PlaceConfiguredPosts(doc, sym3, level, placedIds, cx, cy, z0 + jackH, opts);
                 }
             };
 
@@ -2252,6 +2386,12 @@ namespace RevitScaffoldingTool
 
                     var fDeck = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(tx), MmToFt(ty), MmToFt(zDeck)), trot, "l", tlen);
                     if (fDeck != null) placedIds.Add(fDeck.Id.IntegerValue);
+                    if (opts != null && opts.HasTopTransom)
+                    {
+                        double topZ = z0 + jackH + 2630;
+                        var fTop = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(tx), MmToFt(ty), MmToFt(topZ)), trot, "l", tlen);
+                        if (fTop != null) placedIds.Add(fTop.Id.IntegerValue);
+                    }
                 }
             };
 
