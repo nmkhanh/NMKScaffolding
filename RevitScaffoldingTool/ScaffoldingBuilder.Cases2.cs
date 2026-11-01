@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 
@@ -272,17 +272,31 @@ namespace RevitScaffoldingTool
             {
                 double sOff = s * 1800.0;
                 double zH3_R = z0 + jackH + 830 + sOff;
+
+                // 1. Giằng dọc giữa h3:
+                // - Mặt trước Y = 0 (L = 1200)
                 var lgRM_Front = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH3_R)), 0, "l", W_ret);
                 if (lgRM_Front != null) placedIds.Add(lgRM_Front.Id.IntegerValue);
 
-                PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xA, yBot, 0, W_ret, z0, jackH, s, storyCount, opts);
+                // - Đầu hồi ngoài cùng Y = -1800 (L = 1200)
+                var lgRM_Bot = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH3_R)), 0, "l", W_ret);
+                if (lgRM_Bot != null) placedIds.Add(lgRM_Bot.Id.IntegerValue);
 
+                // - Vách trong giật cấp X = 7800 (Y: -1800 -> -1200, L = 600)
+                var lgRM_A = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH3_R)), 90, "l", 600);
+                if (lgRM_A != null) placedIds.Add(lgRM_A.Id.IntegerValue);
+
+                // 2. Giằng chéo Family 5: Đặt tại mặt ngoài bên phải X = 9000 (dọc theo Y từ -1800 -> 0, L = 1800)
+                PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xB, yBot, 90, L_ret, z0, jackH, s, storyCount, opts);
+
+                // 3. Giằng đỡ mâm tại zDeck:
                 double zDeck_R = z0 + jackH + 1730 + sOff;
                 var trRD_Front = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zDeck_R)), 0, "l", W_ret);
                 var trRD_Bot   = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(zDeck_R)), 0, "l", W_ret);
                 if (trRD_Front != null) placedIds.Add(trRD_Front.Id.IntegerValue);
                 if (trRD_Bot   != null) placedIds.Add(trRD_Bot.Id.IntegerValue);
 
+                // 4. Mâm sàn thao tác Family 6 (L = 1800 mm theo phương Y):
                 if (sym6 != null)
                 {
                     var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xA + 345), MmToFt(yBot), MmToFt(zDeck_R)), 90, "l", L_ret);
@@ -292,31 +306,51 @@ namespace RevitScaffoldingTool
                     if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
                 }
 
+                // 5. Ván chắn biên Family 7:
                 if (sym7 != null)
                 {
+                    // - Mặt trước Y = 0 (L = 1200)
                     var tbFront = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA), MmToFt(yFront - 66), MmToFt(zDeck_R)), 0, "l", W_ret);
-                    var tbBot   = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA), MmToFt(yBot + 66),   MmToFt(zDeck_R)), 0, "l", W_ret);
-                    var tbEndB  = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xB - 66), MmToFt(yBot),  MmToFt(zDeck_R)), 90, "l", L_ret);
                     if (tbFront != null) placedIds.Add(tbFront.Id.IntegerValue);
-                    if (tbBot   != null) placedIds.Add(tbBot.Id.IntegerValue);
-                    if (tbEndB  != null) placedIds.Add(tbEndB.Id.IntegerValue);
+
+                    // - Đầu hồi ngoài cùng đáy Y = -1800 (L = 1200)
+                    var tbBot   = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA), MmToFt(yBot + 66),   MmToFt(zDeck_R)), 0, "l", W_ret);
+                    if (tbBot != null) placedIds.Add(tbBot.Id.IntegerValue);
+
+                    // - Mép ngoài bên phải X = 9000 (L = 1800)
+                    var tbEndB  = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xB - 66), MmToFt(yBot),  MmToFt(zDeck_R)), 90, "l", L_ret);
+                    if (tbEndB != null) placedIds.Add(tbEndB.Id.IntegerValue);
+
+                    // - Vách trong giật cấp X = 7800 (Y: -1800 -> -1200, L = 600)
+                    var tbInnerA = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA + 66), MmToFt(yBot), MmToFt(zDeck_R)), 90, "l", 600);
+                    if (tbInnerA != null) placedIds.Add(tbInnerA.Id.IntegerValue);
                 }
 
+                // 6. Lan can an toàn kép (h6 và h7):
                 double zH6_R = z0 + jackH + 2180 + sOff;
-                var rFront1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH6_R)), 0, "l", W_ret);
-                var rEnd1   = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBot),   MmToFt(zH6_R)), 90, "l", L_ret);
-                var rA_1    = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(zH6_R)), 90, "l", 600);
-                if (rFront1 != null) placedIds.Add(rFront1.Id.IntegerValue);
-                if (rEnd1   != null) placedIds.Add(rEnd1.Id.IntegerValue);
-                if (rA_1    != null) placedIds.Add(rA_1.Id.IntegerValue);
-
                 double zH7_R = z0 + jackH + 2630 + sOff;
+
+                // - Mặt trước Y = 0 (L = 1200)
+                var rFront1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH6_R)), 0, "l", W_ret);
                 var rFront2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH7_R)), 0, "l", W_ret);
-                var rEnd2   = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBot),   MmToFt(zH7_R)), 90, "l", L_ret);
-                var rA_2    = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(zH7_R)), 90, "l", 600);
+                if (rFront1 != null) placedIds.Add(rFront1.Id.IntegerValue);
                 if (rFront2 != null) placedIds.Add(rFront2.Id.IntegerValue);
-                if (rEnd2   != null) placedIds.Add(rEnd2.Id.IntegerValue);
-                if (rA_2    != null) placedIds.Add(rA_2.Id.IntegerValue);
+
+                // - Đầu hồi ngoài cùng đáy Y = -1800 (L = 1200)
+                var rBot1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH6_R)), 0, "l", W_ret);
+                var rBot2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH7_R)), 0, "l", W_ret);
+                if (rBot1 != null) placedIds.Add(rBot1.Id.IntegerValue);
+                if (rBot2 != null) placedIds.Add(rBot2.Id.IntegerValue);
+
+                // - Mép ngoài bên phải X = 9000 (chỉ đặt tay vịn trên h7 vì h6 đã có giằng chéo Family 5)
+                var rEnd2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBot), MmToFt(zH7_R)), 90, "l", L_ret);
+                if (rEnd2 != null) placedIds.Add(rEnd2.Id.IntegerValue);
+
+                // - Vách trong giật cấp X = 7800 (Y: -1800 -> -1200, L = 600)
+                var rA_1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH6_R)), 90, "l", 600);
+                var rA_2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH7_R)), 90, "l", 600);
+                if (rA_1 != null) placedIds.Add(rA_1.Id.IntegerValue);
+                if (rA_2 != null) placedIds.Add(rA_2.Id.IntegerValue);
             }
 
             return null;
