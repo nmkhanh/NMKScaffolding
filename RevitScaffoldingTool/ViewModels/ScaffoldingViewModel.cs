@@ -108,6 +108,7 @@ namespace RevitScaffoldingTool.ViewModels
                     JackHeight = 250.0,
                     FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
                     Mode = mode,
+                    IsFromData = false,
                     Post1Height = 0,
                     Post2Height = 0,
                     Post3Count = 0,
@@ -127,9 +128,10 @@ namespace RevitScaffoldingTool.ViewModels
                     Y0 = 0.0,
                     Z0 = ElevationZ,
                     BayWidth = BayWidth > 0 ? BayWidth : 1200.0,
-                    JackHeight = JackHeight > 0 ? JackHeight : 250.0,
+                    JackHeight = JackHeight,
                     FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
                     Mode = mode,
+                    IsFromData = true,
                     Post1Height = Post1Height,
                     Post2Height = Post2Height,
                     Post3Count = Post3Count,
@@ -232,16 +234,16 @@ namespace RevitScaffoldingTool.ViewModels
         private Task BuildCase11Async() => RunBuildModeAsync(-2, "TRƯỜNG HỢP 1.1 (+Y Mép Ngoài Phẳng)");
 
         [RelayCommand]
-        private Task BuildCase12Async() => RunBuildModeAsync(-3, "TRƯỜNG HỢP 1.2 (+X Thu 1200x1200)");
+        private Task BuildCase12Async() => RunBuildModeAsync(-4, "TRƯỜNG HỢP 1.2 (+X Thu 1200x1200)");
 
         [RelayCommand]
-        private Task BuildCase13Async() => RunBuildModeAsync(-4, "TRƯỜNG HỢP 1.3 (-Y Giằng Thu Ngắn)");
+        private Task BuildCase13Async() => RunBuildModeAsync(-5, "TRƯỜNG HỢP 1.3 (-Y Giằng Thu Ngắn)");
 
         [RelayCommand]
-        private Task BuildCase14Async() => RunBuildModeAsync(-5, "TRƯỜNG HỢP 1.4 (+X Thu 1200x1200)");
+        private Task BuildCase14Async() => RunBuildModeAsync(-6, "TRƯỜNG HỢP 1.4 (+X Thu 1200x1200)");
 
         [RelayCommand]
-        private Task BuildCase21Async() => RunBuildModeAsync(-6, "TRƯỜNG HỢP 2.1 (+Y Vươn Ngoài)");
+        private Task BuildCase21Async() => RunBuildModeAsync(-3, "TRƯỜNG HỢP 2.1 (+Y Vươn Ngoài)");
 
         [RelayCommand]
         private Task BuildCase22Async() => RunBuildModeAsync(-7, "TRƯỜNG HỢP 2.2 (+X Vươn Ngoài -Y)");
