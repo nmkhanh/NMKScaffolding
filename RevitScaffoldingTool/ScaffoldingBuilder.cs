@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -464,24 +464,23 @@ namespace RevitScaffoldingTool
             double totalPostH = GetTotalPostHeight(opts);
             double colTopZ = z0 + jackH + totalPostH;
 
-            double sOff = s * 1800.0;
-            double zH2 = z0 + jackH + 380.0 + sOff;
-            double zH5_brc = z0 + jackH + 1730.0 + sOff;
-
-            // Giằng chéo dưới (380 -> 1280): Đặt khi còn nằm trong phạm vi đỉnh cột
-            if (zH2 + 900.0 <= colTopZ + 10.0)
+            // 1. Chỉ giằng chéo dưới cùng mới đặt tại h2 (380 mm) - chỉ đặt 1 lần ở tầng đáy (s == 0)
+            if (s == 0)
             {
-                var brc1 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(px), MmToFt(py), MmToFt(zH2)), rotDeg, "l", spanL);
-                if (brc1 != null) { SetParam(brc1, "h", 900.0); placedIds.Add(brc1.Id.IntegerValue); }
+                double zH2 = z0 + jackH + 380.0;
+                if (opts == null || !opts.IsFromData || zH2 + 900.0 <= colTopZ + 10.0)
+                {
+                    var brcFoot = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(px), MmToFt(py), MmToFt(zH2)), rotDeg, "l", spanL);
+                    if (brcFoot != null) { SetParam(brcFoot, "h", 900.0); placedIds.Add(brcFoot.Id.IntegerValue); }
+                }
             }
 
-            // Giằng chéo trên (1730 -> 2630):
-            // Chỉ đặt tại tầng trên cùng (s == storyCount - 1) để tránh đè trùng với tầng kế tiếp,
-            // và đỉnh cột phải vươn tới ít nhất cao độ đỉnh giằng (1730 + sOff + 900 <= colTopZ)
-            if (s == storyCount - 1 && zH5_brc + 900.0 <= colTopZ + 10.0)
+            // 2. Giằng chéo các tầng luôn đặt cùng cao độ mâm (zDeck = 1730 + s * 1800)
+            double zDeck = z0 + jackH + 1730.0 + s * 1800.0;
+            if (opts == null || !opts.IsFromData || zDeck + 900.0 <= colTopZ + 10.0)
             {
-                var brc2 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(px), MmToFt(py), MmToFt(zH5_brc)), rotDeg, "l", spanL);
-                if (brc2 != null) { SetParam(brc2, "h", 900.0); placedIds.Add(brc2.Id.IntegerValue); }
+                var brcDeck = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(px), MmToFt(py), MmToFt(zDeck)), rotDeg, "l", spanL);
+                if (brcDeck != null) { SetParam(brcDeck, "h", 900.0); placedIds.Add(brcDeck.Id.IntegerValue); }
             }
         }
 
