@@ -115,12 +115,7 @@ namespace RevitScaffoldingTool
                 double sOff = s * 1800.0;
                 double zH3_R = z0 + jackH + 830 + sOff;
 
-                // 1. Giằng dọc giữa h3:
-                // - Đầu hồi ngoài cùng đỉnh Y = +600 (L = 1200)
-                var lgRM_Top = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yTop), MmToFt(zH3_R)), 0, "l", W_ret);
-                if (lgRM_Top != null) placedIds.Add(lgRM_Top.Id.IntegerValue);
-
-                // - Giằng dọc trong: Vách trong giật cấp X = 7800 (Y: 0 -> +600, L = 600)
+                // 1. Giằng dọc trong: Vách trong giật cấp X = 7800 (Y: 0 -> +600, L = 600)
                 var lgRM_A = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH3_R)), 90, "l", 600);
                 if (lgRM_A != null) placedIds.Add(lgRM_A.Id.IntegerValue);
 
@@ -178,17 +173,11 @@ namespace RevitScaffoldingTool
                 if (rTop1 != null) placedIds.Add(rTop1.Id.IntegerValue);
                 if (rTop2 != null) placedIds.Add(rTop2.Id.IntegerValue);
 
-                // - Đầu dưới cùng Y = -1200 (L = 1200): Có tay vịn trên h7 phía trên giằng chéo
-                var rBack2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBack), MmToFt(zH7_R)), 0, "l", W_ret);
-                if (rBack2 != null) placedIds.Add(rBack2.Id.IntegerValue);
-
                 // - Giằng dọc trong: Vách trong giật cấp X = 7800 (Y: 0 -> +600, L = 600) có đầy đủ lan can kép h6 và h7
                 var rA_1  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH6_R)), 90, "l", 600);
                 var rA_2  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH7_R)), 90, "l", 600);
                 if (rA_1 != null) placedIds.Add(rA_1.Id.IntegerValue);
                 if (rA_2 != null) placedIds.Add(rA_2.Id.IntegerValue);
-
-                // (LƯU Ý: Mép ngoài X = 9000 không cần giằng dọc ngoài vì đã có giằng chéo ngoài)
             }
 
             return null;
