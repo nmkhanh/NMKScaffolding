@@ -113,16 +113,7 @@ namespace RevitScaffoldingTool
             for (int s = 0; s < storyCount; s++)
             {
                 double sOff = s * 1800.0;
-                if (sym5 != null)
-                {
-                    double zH2 = z0 + jackH + 380 + sOff;
-                    double zH5_brc = z0 + jackH + 1730 + sOff;
-                    var brc1 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xA), MmToFt(yBack), MmToFt(zH2)), 0, "l", W_ret);
-                    if (brc1 != null) { SetParam(brc1, "h", 900); placedIds.Add(brc1.Id.IntegerValue); }
-
-                    var brc2 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xA), MmToFt(yBack), MmToFt(zH5_brc)), 0, "l", W_ret);
-                    if (brc2 != null) { SetParam(brc2, "h", 900); placedIds.Add(brc2.Id.IntegerValue); }
-                }
+                PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xA, yBack, 0, W_ret, z0, jackH, s, storyCount, opts);
 
                 double zH3_R = z0 + jackH + 830 + sOff;
                 var lgRM_Top = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yTop), MmToFt(zH3_R)), 0, "l", W_ret);
@@ -284,16 +275,7 @@ namespace RevitScaffoldingTool
                 var lgRM_Front = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH3_R)), 0, "l", W_ret);
                 if (lgRM_Front != null) placedIds.Add(lgRM_Front.Id.IntegerValue);
 
-                if (sym5 != null)
-                {
-                    double zH2 = z0 + jackH + 380 + sOff;
-                    double zH5_brc = z0 + jackH + 1730 + sOff;
-                    var brc1 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH2)), 0, "l", W_ret);
-                    if (brc1 != null) { SetParam(brc1, "h", 900); placedIds.Add(brc1.Id.IntegerValue); }
-
-                    var brc2 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH5_brc)), 0, "l", W_ret);
-                    if (brc2 != null) { SetParam(brc2, "h", 900); placedIds.Add(brc2.Id.IntegerValue); }
-                }
+                PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xA, yBot, 0, W_ret, z0, jackH, s, storyCount, opts);
 
                 double zDeck_R = z0 + jackH + 1730 + sOff;
                 var trRD_Front = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zDeck_R)), 0, "l", W_ret);

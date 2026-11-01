@@ -81,16 +81,7 @@ namespace RevitScaffoldingTool
                 double sOff = s * 1800.0;
 
                 // Giằng chéo sau Family 5 (Y = -W)
-                if (sym5 != null)
-                {
-                    double zH2 = z0 + jackH + 380 + sOff;
-                    double zH5_brc = z0 + jackH + 1730 + sOff;
-                    var brc1 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xBay5), MmToFt(y0 - W), MmToFt(zH2)), 0, "l", L_bay5);
-                    if (brc1 != null) { SetParam(brc1, "h", 900); placedIds.Add(brc1.Id.IntegerValue); }
-
-                    var brc2 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xBay5), MmToFt(y0 - W), MmToFt(zH5_brc)), 0, "l", L_bay5);
-                    if (brc2 != null) { SetParam(brc2, "h", 900); placedIds.Add(brc2.Id.IntegerValue); }
-                }
+                PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xBay5, y0 - W, 0, L_bay5, z0, jackH, s, storyCount, opts);
 
                 // Ván chắn biên sau (Y = -W)
                 if (sym7 != null)
@@ -208,16 +199,7 @@ namespace RevitScaffoldingTool
                 var lgRM1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC), MmToFt(y0), MmToFt(zH3_R)), 90, "l", L_return);
                 if (lgRM1 != null) placedIds.Add(lgRM1.Id.IntegerValue);
 
-                if (sym5 != null)
-                {
-                    double zH2 = z0 + jackH + 380 + sOff;
-                    double zH5_brc = z0 + jackH + 1730 + sOff;
-                    var brc1 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xMax), MmToFt(y0), MmToFt(zH2)), 90, "l", L_return);
-                    if (brc1 != null) { SetParam(brc1, "h", 900); placedIds.Add(brc1.Id.IntegerValue); }
-
-                    var brc2 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xMax), MmToFt(y0), MmToFt(zH5_brc)), 90, "l", L_return);
-                    if (brc2 != null) { SetParam(brc2, "h", 900); placedIds.Add(brc2.Id.IntegerValue); }
-                }
+                PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xMax, y0, 90, L_return, z0, jackH, s, storyCount, opts);
 
                 double zDeck_R = z0 + jackH + 1730 + sOff;
                 var trRD1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC), MmToFt(y0), MmToFt(zDeck_R)), 0, "l", W_return);
@@ -328,16 +310,7 @@ namespace RevitScaffoldingTool
             for (int s = 0; s < storyCount; s++)
             {
                 double sOff = s * 1800.0;
-                if (sym5 != null)
-                {
-                    double zH2 = z0 + jackH + 380 + sOff;
-                    double zH5_brc = z0 + jackH + 1730 + sOff;
-                    var brc1 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xLast), MmToFt(y0 - W), MmToFt(zH2)), 0, "l", L_last);
-                    if (brc1 != null) { SetParam(brc1, "h", 900); placedIds.Add(brc1.Id.IntegerValue); }
-
-                    var brc2 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xLast), MmToFt(y0 - W), MmToFt(zH5_brc)), 0, "l", L_last);
-                    if (brc2 != null) { SetParam(brc2, "h", 900); placedIds.Add(brc2.Id.IntegerValue); }
-                }
+                PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xLast, y0 - W, 0, L_last, z0, jackH, s, storyCount, opts);
 
                 if (sym7 != null)
                 {
@@ -401,16 +374,7 @@ namespace RevitScaffoldingTool
                 var lgRM1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLast), MmToFt(y0), MmToFt(zH3_R)), 90, "l", L_return);
                 if (lgRM1 != null) placedIds.Add(lgRM1.Id.IntegerValue);
 
-                if (sym5 != null)
-                {
-                    double zH2 = z0 + jackH + 380 + sOff;
-                    double zH5_brc = z0 + jackH + 1730 + sOff;
-                    var brc1 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xMax), MmToFt(y0), MmToFt(zH2)), 90, "l", L_return);
-                    if (brc1 != null) { SetParam(brc1, "h", 900); placedIds.Add(brc1.Id.IntegerValue); }
-
-                    var brc2 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xMax), MmToFt(y0), MmToFt(zH5_brc)), 90, "l", L_return);
-                    if (brc2 != null) { SetParam(brc2, "h", 900); placedIds.Add(brc2.Id.IntegerValue); }
-                }
+                PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xMax, y0, 90, L_return, z0, jackH, s, storyCount, opts);
 
                 double zDeck_R = z0 + jackH + 1730 + sOff;
                 var trRD2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLast), MmToFt(yTop), MmToFt(zDeck_R)), 0, "l", W_return);
@@ -567,16 +531,7 @@ namespace RevitScaffoldingTool
             for (int s = 0; s < storyCount; s++)
             {
                 double sOff = s * 1800.0;
-                if (sym5 != null)
-                {
-                    double zH2 = z0 + jackH + 380 + sOff;
-                    double zH5_brc = z0 + jackH + 1730 + sOff;
-                    var brc1 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xBay5), MmToFt(y0 - W), MmToFt(zH2)), 0, "l", L_cut);
-                    if (brc1 != null) { SetParam(brc1, "h", 900); placedIds.Add(brc1.Id.IntegerValue); }
-
-                    var brc2 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xBay5), MmToFt(y0 - W), MmToFt(zH5_brc)), 0, "l", L_cut);
-                    if (brc2 != null) { SetParam(brc2, "h", 900); placedIds.Add(brc2.Id.IntegerValue); }
-                }
+                PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xBay5, y0 - W, 0, L_cut, z0, jackH, s, storyCount, opts);
 
                 if (sym7 != null)
                 {
@@ -631,16 +586,7 @@ namespace RevitScaffoldingTool
             for (int s = 0; s < storyCount; s++)
             {
                 double sOff = s * 1800.0;
-                if (sym5 != null)
-                {
-                    double zH2 = z0 + jackH + 380 + sOff;
-                    double zH5_brc = z0 + jackH + 1730 + sOff;
-                    var brc1 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xC), MmToFt(yBot), MmToFt(zH2)), 90, "l", L_return);
-                    if (brc1 != null) { SetParam(brc1, "h", 900); placedIds.Add(brc1.Id.IntegerValue); }
-
-                    var brc2 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xC), MmToFt(yBot), MmToFt(zH5_brc)), 90, "l", L_return);
-                    if (brc2 != null) { SetParam(brc2, "h", 900); placedIds.Add(brc2.Id.IntegerValue); }
-                }
+                PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xC, yBot, 90, L_return, z0, jackH, s, storyCount, opts);
 
                 double zH3_R = z0 + jackH + 830 + sOff;
                 var lgRM2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yBot), MmToFt(zH3_R)), 90, "l", L_return);
@@ -826,16 +772,7 @@ namespace RevitScaffoldingTool
             for (int s = 0; s < storyCount; s++)
             {
                 double sOff = s * 1800.0;
-                if (sym5 != null)
-                {
-                    double zH2 = z0 + jackH + 380 + sOff;
-                    double zH5_brc = z0 + jackH + 1730 + sOff;
-                    var brc1 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xLast), MmToFt(yBot), MmToFt(zH2)), 90, "l", L_return);
-                    if (brc1 != null) { SetParam(brc1, "h", 900); placedIds.Add(brc1.Id.IntegerValue); }
-
-                    var brc2 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(xLast), MmToFt(yBot), MmToFt(zH5_brc)), 90, "l", L_return);
-                    if (brc2 != null) { SetParam(brc2, "h", 900); placedIds.Add(brc2.Id.IntegerValue); }
-                }
+                PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xLast, yBot, 90, L_return, z0, jackH, s, storyCount, opts);
 
                 double zH3_R = z0 + jackH + 830 + sOff;
                 var lgRM2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yBot), MmToFt(zH3_R)), 90, "l", L_return);

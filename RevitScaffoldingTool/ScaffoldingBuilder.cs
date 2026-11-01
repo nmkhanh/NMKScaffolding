@@ -314,16 +314,7 @@ namespace RevitScaffoldingTool
                 if (lgMid != null) placedIds.Add(lgMid.Id.IntegerValue);
 
                 // Giằng chéo Family 5 (mặt sau Y = -W)
-                if (sym5 != null)
-                {
-                    double zH2 = z0 + jackH + 380 + sOff;
-                    double zH5 = z0 + jackH + 1730 + sOff;
-                    var brc1 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(px), MmToFt(y0 - W), MmToFt(zH2)), 0, "l", L_i);
-                    if (brc1 != null) { SetParam(brc1, "h", 900); placedIds.Add(brc1.Id.IntegerValue); }
-
-                    var brc2 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(px), MmToFt(y0 - W), MmToFt(zH5)), 0, "l", L_i);
-                    if (brc2 != null) { SetParam(brc2, "h", 900); placedIds.Add(brc2.Id.IntegerValue); }
-                }
+                PlaceBayDiagonalBraces(doc, sym5, level, placedIds, px, y0 - W, 0, L_i, z0, jackH, s, storyCount, opts);
 
                 // Lan can mặt trước Family 4 bảo vệ sàn (h6 và h7)
                 if (buildFrontRail)
@@ -377,41 +368,78 @@ namespace RevitScaffoldingTool
             for (int i = 8; i <= 15; i++) SetParam(inst, "h" + i, 0);
         }
 
-        private static void ConfigureAlincoColumn(FamilyInstance inst, double height)
+        private static void ConfigureAlincoColumn(FamilyInstance inst, double height, bool isBottomPost = true)
         {
             if (inst == null) return;
             SetParam(inst, "h", height);
 
             switch ((int)height)
             {
+                case 225:
+                    // 支柱225: 1 đĩa tại 155
+                    SetParam(inst, "h1", 155);
+                    for (int i = 2; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    break;
+                case 450:
+                    if (isBottomPost)
+                    {
+                        // 450根がらみ用 (chân giàn có đĩa giằng chân 135 & 380)
+                        SetParam(inst, "h1", 135);
+                        SetParam(inst, "h2", 380);
+                        for (int i = 3; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    }
+                    else
+                    {
+                        // 450中間用 (đoạn nối giữa chỉ có 1 đĩa 380)
+                        SetParam(inst, "h1", 380);
+                        for (int i = 2; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    }
+                    break;
+                case 675:
+                    // 支柱675: 3 đĩa tại 155, 380, 605
+                    SetParam(inst, "h1", 155);
+                    SetParam(inst, "h2", 380);
+                    SetParam(inst, "h3", 605);
+                    for (int i = 4; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    break;
                 case 900:
+                    // 支柱900: 3 đĩa tại 135, 380, 830
                     SetParam(inst, "h1", 135);
                     SetParam(inst, "h2", 380);
                     SetParam(inst, "h3", 830);
                     for (int i = 4; i <= 15; i++) SetParam(inst, "h" + i, 0);
                     break;
-                case 1800:
+                case 1350:
+                    // 支柱1350: 4 đĩa tại 135, 380, 830, 1280
                     SetParam(inst, "h1", 135);
                     SetParam(inst, "h2", 380);
                     SetParam(inst, "h3", 830);
                     SetParam(inst, "h4", 1280);
-                    SetParam(inst, "h5", 1730);
-                    for (int i = 6; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    for (int i = 5; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    break;
+                case 1800:
+                    // 支柱1800 (Chuẩn CAD ALINCO): 4 đĩa, bắt đầu từ 380 (không có đĩa 135)
+                    SetParam(inst, "h1", 380);
+                    SetParam(inst, "h2", 830);
+                    SetParam(inst, "h3", 1280);
+                    SetParam(inst, "h4", 1730);
+                    for (int i = 5; i <= 15; i++) SetParam(inst, "h" + i, 0);
                     break;
                 case 2700:
+                    // 支柱2700: 7 đĩa tại 135, 380, 830, 1280, 1730, 2180, 2630
                     ConfigureAlinco2700(inst);
                     break;
                 case 3600:
-                    SetParam(inst, "h1", 135);
-                    SetParam(inst, "h2", 380);
-                    SetParam(inst, "h3", 830);
-                    SetParam(inst, "h4", 1280);
-                    SetParam(inst, "h5", 1730);
-                    SetParam(inst, "h6", 2180);
-                    SetParam(inst, "h7", 2630);
-                    SetParam(inst, "h8", 3080);
-                    SetParam(inst, "h9", 3530);
-                    for (int i = 10; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    // 支柱3600 (Chuẩn CAD ALINCO): 8 đĩa, bắt đầu từ 380 (không có đĩa 135)
+                    SetParam(inst, "h1", 380);
+                    SetParam(inst, "h2", 830);
+                    SetParam(inst, "h3", 1280);
+                    SetParam(inst, "h4", 1730);
+                    SetParam(inst, "h5", 2180);
+                    SetParam(inst, "h6", 2630);
+                    SetParam(inst, "h7", 3080);
+                    SetParam(inst, "h8", 3530);
+                    for (int i = 9; i <= 15; i++) SetParam(inst, "h" + i, 0);
                     break;
                 default:
                     SetParam(inst, "h1", 135);
@@ -426,6 +454,41 @@ namespace RevitScaffoldingTool
                     for (int i = idx; i <= 15; i++) SetParam(inst, "h" + i, 0);
                     break;
             }
+        }
+
+        public static void PlaceBayDiagonalBraces(Document doc, FamilySymbol sym5, Level level, List<int> placedIds,
+            double px, double py, double rotDeg, double spanL, double z0, double jackH, int s, int storyCount, BuildOptions opts)
+        {
+            if (sym5 == null) return;
+
+            double totalPostH = GetTotalPostHeight(opts);
+            double colTopZ = z0 + jackH + totalPostH;
+
+            double sOff = s * 1800.0;
+            double zH2 = z0 + jackH + 380.0 + sOff;
+            double zH5_brc = z0 + jackH + 1730.0 + sOff;
+
+            // Giằng chéo dưới (380 -> 1280): Đặt khi còn nằm trong phạm vi đỉnh cột
+            if (zH2 + 900.0 <= colTopZ + 10.0)
+            {
+                var brc1 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(px), MmToFt(py), MmToFt(zH2)), rotDeg, "l", spanL);
+                if (brc1 != null) { SetParam(brc1, "h", 900.0); placedIds.Add(brc1.Id.IntegerValue); }
+            }
+
+            // Giằng chéo trên (1730 -> 2630):
+            // Chỉ đặt tại tầng trên cùng (s == storyCount - 1) để tránh đè trùng với tầng kế tiếp,
+            // và đỉnh cột phải vươn tới ít nhất cao độ đỉnh giằng (1730 + sOff + 900 <= colTopZ)
+            if (s == storyCount - 1 && zH5_brc + 900.0 <= colTopZ + 10.0)
+            {
+                var brc2 = PlaceInstance(doc, sym5, level, new XYZ(MmToFt(px), MmToFt(py), MmToFt(zH5_brc)), rotDeg, "l", spanL);
+                if (brc2 != null) { SetParam(brc2, "h", 900.0); placedIds.Add(brc2.Id.IntegerValue); }
+            }
+        }
+
+        public static void PlaceBayDiagonalBraces(Document doc, FamilySymbol sym5, Level level, List<int> placedIds,
+            double px, double py, double rotDeg, double spanL, double z0, double jackH, BuildOptions opts)
+        {
+            PlaceBayDiagonalBraces(doc, sym5, level, placedIds, px, py, rotDeg, spanL, z0, jackH, 0, 1, opts);
         }
 
         public static double GetTotalPostHeight(BuildOptions opts)
@@ -456,13 +519,13 @@ namespace RevitScaffoldingTool
             if (opts.Post1Height > 0)
             {
                 var col = PlaceInstance(doc, sym3, level, new XYZ(MmToFt(cx), MmToFt(cy), MmToFt(curZ)), 0, "h", opts.Post1Height);
-                if (col != null) { ConfigureAlincoColumn(col, opts.Post1Height); placedIds.Add(col.Id.IntegerValue); }
+                if (col != null) { ConfigureAlincoColumn(col, opts.Post1Height, true); placedIds.Add(col.Id.IntegerValue); }
                 curZ += opts.Post1Height;
             }
             if (opts.Post2Height > 0)
             {
                 var col = PlaceInstance(doc, sym3, level, new XYZ(MmToFt(cx), MmToFt(cy), MmToFt(curZ)), 0, "h", opts.Post2Height);
-                if (col != null) { ConfigureAlincoColumn(col, opts.Post2Height); placedIds.Add(col.Id.IntegerValue); }
+                if (col != null) { ConfigureAlincoColumn(col, opts.Post2Height, false); placedIds.Add(col.Id.IntegerValue); }
                 curZ += opts.Post2Height;
             }
             if (opts.Post3Height > 0 && opts.Post3Count > 0)
@@ -470,20 +533,20 @@ namespace RevitScaffoldingTool
                 for (int i = 0; i < opts.Post3Count; i++)
                 {
                     var col = PlaceInstance(doc, sym3, level, new XYZ(MmToFt(cx), MmToFt(cy), MmToFt(curZ)), 0, "h", opts.Post3Height);
-                    if (col != null) { ConfigureAlincoColumn(col, opts.Post3Height); placedIds.Add(col.Id.IntegerValue); }
+                    if (col != null) { ConfigureAlincoColumn(col, opts.Post3Height, false); placedIds.Add(col.Id.IntegerValue); }
                     curZ += opts.Post3Height;
                 }
             }
             if (opts.Post4Height > 0)
             {
                 var col = PlaceInstance(doc, sym3, level, new XYZ(MmToFt(cx), MmToFt(cy), MmToFt(curZ)), 0, "h", opts.Post4Height);
-                if (col != null) { ConfigureAlincoColumn(col, opts.Post4Height); placedIds.Add(col.Id.IntegerValue); }
+                if (col != null) { ConfigureAlincoColumn(col, opts.Post4Height, false); placedIds.Add(col.Id.IntegerValue); }
                 curZ += opts.Post4Height;
             }
             if (opts.Post5Height > 0)
             {
                 var col = PlaceInstance(doc, sym3, level, new XYZ(MmToFt(cx), MmToFt(cy), MmToFt(curZ)), 0, "h", opts.Post5Height);
-                if (col != null) { ConfigureAlincoColumn(col, opts.Post5Height); placedIds.Add(col.Id.IntegerValue); }
+                if (col != null) { ConfigureAlincoColumn(col, opts.Post5Height, false); placedIds.Add(col.Id.IntegerValue); }
                 curZ += opts.Post5Height;
             }
         }
