@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 
@@ -754,18 +754,22 @@ namespace RevitScaffoldingTool
             double zH1_R = z0 + jackH + 135;
             var lgRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLast), MmToFt(yBot), MmToFt(zH1_R)), 90, "l", L_return);
             var lgRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yBot), MmToFt(zH1_R)), 90, "l", L_return);
+            var trRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLast), MmToFt(yBase), MmToFt(zH1_R)), 0, "l", W_return);
             var trRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLast), MmToFt(yBot), MmToFt(zH1_R)), 0, "l", W_return);
             if (lgRF1 != null) placedIds.Add(lgRF1.Id.IntegerValue);
             if (lgRF2 != null) placedIds.Add(lgRF2.Id.IntegerValue);
+            if (trRF1 != null) placedIds.Add(trRF1.Id.IntegerValue);
             if (trRF2 != null) placedIds.Add(trRF2.Id.IntegerValue);
 
             if (opts != null && opts.HasTopTransom)
             {
                 var lgTopRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLast), MmToFt(yBot), MmToFt(topZ)), 90, "l", L_return);
                 var lgTopRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yBot), MmToFt(topZ)), 90, "l", L_return);
+                var trTopRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLast), MmToFt(yBase), MmToFt(topZ)), 0, "l", W_return);
                 var trTopRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLast), MmToFt(yBot), MmToFt(topZ)), 0, "l", W_return);
                 if (lgTopRF1 != null) placedIds.Add(lgTopRF1.Id.IntegerValue);
                 if (lgTopRF2 != null) placedIds.Add(lgTopRF2.Id.IntegerValue);
+                if (trTopRF1 != null) placedIds.Add(trTopRF1.Id.IntegerValue);
                 if (trTopRF2 != null) placedIds.Add(trTopRF2.Id.IntegerValue);
             }
 
@@ -779,7 +783,9 @@ namespace RevitScaffoldingTool
                 if (lgRM2 != null) placedIds.Add(lgRM2.Id.IntegerValue);
 
                 double zDeck_R = z0 + jackH + 1730 + sOff;
+                var trRD1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLast), MmToFt(yBase), MmToFt(zDeck_R)), 0, "l", W_return);
                 var trRD2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLast), MmToFt(yBot), MmToFt(zDeck_R)), 0, "l", W_return);
+                if (trRD1 != null) placedIds.Add(trRD1.Id.IntegerValue);
                 if (trRD2 != null) placedIds.Add(trRD2.Id.IntegerValue);
 
                 if (sym6 != null)
