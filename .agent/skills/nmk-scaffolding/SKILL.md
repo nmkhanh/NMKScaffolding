@@ -112,3 +112,20 @@ Quy chuẩn kích thước và vị trí đĩa liên kết (Rosette) theo tiêu 
    - Cập nhật checklist `[x]` và nhật ký kỹ thuật vào [1800x1200.md](file:///c:/Users/Admin/Documents/antigravity/nifty-chandrasekhar/1800x1200.md).
    - Đồng bộ sang Google Drive: `Copy-Item "1800x1200.md" "H:\My Drive\Family\New folder\Child\1800x1200.md" -Force`.
    - Git commit, tạo tag milestone kỹ thuật và đẩy lên remote: `git push origin master --tags`.
+
+---
+
+## 6. Kỷ Luật Thép: Chống Báo Cáo Khống (Anti-Stub) & Chuẩn Hóa Table Run Connect
+
+1. **Tuyệt đối cấm hàm rỗng / Stub / Ủy thác giả**:
+   - Nghiêm cấm tạo stub, hàm rỗng hoặc gọi ủy thác tạm bợ sang trường hợp khác rồi báo cáo "đã xong".
+   - Mọi hàm thi công (đặc biệt là các hàm connect `ConnectCorner_TH1_1` $\to$ `ConnectCorner_TH2_2`) PHẢI có đầy đủ thân hàm và bố trí cấu kiện thực tế 100%.
+
+2. **Báo cáo Siêu Ngắn Gọn (Tối đa 3 - 5 dòng)**:
+   - Cắt bỏ hoàn toàn văn vẻ dông dài hoặc lý thuyết rườm rà.
+   - Chỉ báo cáo 3 thông tin cốt lõi: (1) Tính năng đã làm xong cụ thể, (2) Kết quả build và số dòng code thật, (3) Kết quả kiểm tra Pass/Fail.
+
+3. **Chuẩn hóa Connect Vector Động & Hỗ trợ Vòng Khép Kín (Closed Loop)**:
+   - Lấy kích thước thật: Sử dụng nhịp cuối của Row trước (`L_last`), nhịp đầu của Row sau (`L_first`) và bề rộng thực tế (`W_prev`, `W_next`) thay vì fix cứng số liệu mặc định.
+   - Giữ nguyên 100% logic cấu kiện chuẩn của 6 trường hợp (cột cấy, giằng cắt ngắn, ván chắn, lan can, mâm bù góc, giằng chéo).
+   - Hỗ trợ vòng khép kín: Xử lý trường hợp Row cuối cùng có thể connect nối lại với Row đầu tiên (Closed Loop).
