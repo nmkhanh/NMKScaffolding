@@ -135,7 +135,7 @@
                         <Button Grid.Column="2" Content="▶ Chạy (Run)"
                                 Command="{Binding RunBaysCommand}"
                                 Height="34" Background="#059669"
-                                ToolTip="Lắp dựng giàn giáo cho hệ giàn đang chọn theo Data"/>
+                                ToolTip="Lắp dựng giàn giáo cho hệ giàn đang chọn kết hợp thông số từ Table và Data (Luôn chạy theo Data)"/>
                     </Grid>
 
                     <!-- DATAGRID: DANH SÁCH HỆ GIÀN -->
@@ -324,17 +324,20 @@
                 </StackPanel>
             </ScrollViewer>
 
-            <!-- CỘT BÊN PHẢI: TOÀN BỘ CÁC BUTTONS THI CÔNG (LUÔN CHẠY THEO DATA) -->
+            <!-- CỘT BÊN PHẢI: TOÀN BỘ CÁC BUTTONS THI CÔNG & CHECKBOX FROM DATA -->
             <GroupBox Grid.Column="4" Header="5. Thi Công Theo Trường Hợp">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="0,2,0,0">
 
-                        <!-- THÔNG BÁO QUY CHUẨN RUN THEO DATA -->
+                        <!-- CHECKBOX FROM DATA (ÁP DỤNG CHO NHÓM NÚT DƯỚI) -->
                         <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,10">
                             <StackPanel>
-                                <TextBlock Text="⚡ Chế độ thi công: Luôn theo Data" FontWeight="Bold" Foreground="#0F172A"/>
-                                <TextBlock Text="Mọi nút bấm đều tự động áp dụng thông số từ Cột Data ở giữa."
-                                           Foreground="#475569" FontSize="11" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                                <CheckBox IsChecked="{Binding IsFromData, Mode=TwoWay}" FontWeight="Bold" Foreground="#0F172A"
+                                          Content="From data (Áp dụng cho nhóm nút dưới)"/>
+                                <TextBlock Text="• Tích chọn [✓]: Chạy theo thông số tùy chỉnh ở Cột Data."
+                                           Foreground="#475569" FontSize="11" Margin="20,4,0,0"/>
+                                <TextBlock Text="• Bỏ chọn [ ]: Chạy theo thông số mặc định (Default chuẩn)."
+                                           Foreground="#64748B" FontSize="11" Margin="20,2,0,0"/>
                             </StackPanel>
                         </Border>
 

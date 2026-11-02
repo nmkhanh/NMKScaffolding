@@ -17,12 +17,12 @@ namespace RevitScaffoldingTool.ViewModels
     {
         private readonly UIApplication _uiApp;
 
-        // Bảng hệ giàn (DataGrid)
+        // Bảng hệ giàn (DataGrid - Cột Trái)
         public ObservableCollection<BayRowModel> BayRows { get; } = new ObservableCollection<BayRowModel>();
         [ObservableProperty] private BayRowModel _selectedBayRow;
         public List<string> ConnectCases { get; } = new List<string> { "TH 1.1", "TH 1.2", "TH 1.3", "TH 1.4", "TH 2.1", "TH 2.2" };
 
-        // Vị trí, Chân chống & Cao độ Z
+        // Vị trí, Chân chống & Cao độ Z (Cột Giữa - Data)
         [ObservableProperty] private double _elevationZ = 0.0;
         [ObservableProperty] private double _jackHeight = 250.0;
         [ObservableProperty] private double _bayWidth = 1200.0;
@@ -39,6 +39,9 @@ namespace RevitScaffoldingTool.ViewModels
         // Số tầng & Giằng đỉnh
         [ObservableProperty] private int _storyCount = 1;
         [ObservableProperty] private bool _hasTopTransom = false;
+
+        // Tùy chọn chạy theo dữ liệu nhập (From data) — ÁP DỤNG RIÊNG CHO NHÓM NÚT BÊN PHẢI
+        [ObservableProperty] private bool _isFromData = true;
 
         // Trạng thái thực thi
         [ObservableProperty] private string _statusMessage = "Sẵn sàng thi công giàn giáo ALINCO.";
@@ -65,6 +68,7 @@ namespace RevitScaffoldingTool.ViewModels
                 Post5Height = s.Post5Height;
                 StoryCount = s.StoryCount > 0 ? s.StoryCount : 1;
                 HasTopTransom = s.HasTopTransom;
+                IsFromData = s.IsFromData;
             }
             catch
             {
@@ -87,6 +91,7 @@ namespace RevitScaffoldingTool.ViewModels
                 s.Post5Height = Post5Height;
                 s.StoryCount = StoryCount;
                 s.HasTopTransom = HasTopTransom;
+                s.IsFromData = IsFromData;
                 s.Save();
             }
             catch
@@ -94,24 +99,90 @@ namespace RevitScaffoldingTool.ViewModels
             }
         }
 
-        private BuildOptions CreateOptions(int mode, List<double> customBayLengths = null)
+        /// <summary>
+        /// Tạo cấu hình thực thi cho nhóm Button bên phải (tuân thủ Checkbox IsFromData).
+        /// </summary>
+        private BuildOptions CreateOptionsForButtons(int mode)
         {
             SaveSettings();
 
-            // Luôn chạy theo dữ liệu (Data) cấu hình trên UI
+            if (!IsFromData)
+            {
+                // Chế độ Default (chạy theo thông số mặc định của từng trường hợp)
+                return new BuildOptions
+                {
+                    X0 = 0.0,
+                    Y0 = 0.0,
+                    Z0 = 0.0,
+                    BayWidth = 1200.0,
+                    JackHeight = 250.0,
+                    BayLengths = new List<double> { 1800, 1200, 1800, 1200, 1800 },
+                    FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
+                    Mode = mode,
+                    IsFromData = false,
+                    Post1Height = 0,
+                    Post2Height = 0,
+                    Post3Count = 0,
+                    Post3Height = 0,
+                    Post4Height = 0,
+                    Post5Height = 0,
+                    StoryCount = 1,
+                    HasTopTransom = false
+                };
+            }
+            else
+            {
+                // Chế độ From Data (chạy theo thông số cấu hình ở Cột Data giữa)
+                return new BuildOptions
+                {
+                    X0 = 0.0,
+                    Y0 = 0.0,
+                    Z0 = ElevationZ,
+                    BayWidth = BayWidth > 0 ? BayWidth : 1200.0,
+                    JackHeight = JackHeight,
+                    BayLengths = new List<double> { 1800, 1200, 1800, 1200, 1800 },
+                    FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
+                    Mode = mode,
+                    IsFromData = true,
+                    Post1Height = Post1Height,
+                    Post2Height = Post2Height,
+                    Post3Count = Post3Count,
+                    Post3Height = Post3Height,
+                    Post4Height = Post4Height,
+                    Post5Height = Post5Height,
+                    StoryCount = StoryCount > 0 ? StoryCount : 1,
+                    HasTopTransom = HasTopTransom
+                };
+            }
+        }
+
+        /// <summary>
+        /// Tạo cấu hình thực thi cho nút Run bên Table:
+        /// LUÔN KẾT HỢP DATA TỪ TABLE (Connect case, nhịp BayLengths, bề rộng Width)
+        /// VÀ DATA TỪ CỘT GIỮA (Cao độ Z, kích chân, cột chống xếp tầng, số tầng, giằng đỉnh).
+        /// Hoàn toàn không phụ thuộc vào Checkbox IsFromData.
+        /// </summary>
+        private BuildOptions CreateOptionsForTableRun(int mode, BayRowModel row)
+        {
+            SaveSettings();
+
+            var lengths = (row != null && row.BayLengths != null && row.BayLengths.Count > 0)
+                ? row.BayLengths
+                : new List<double> { 1800, 1200, 1800, 1200, 1800 };
+
+            double w = (row != null && row.Width > 0) ? row.Width : (BayWidth > 0 ? BayWidth : 1200.0);
+
             return new BuildOptions
             {
                 X0 = 0.0,
                 Y0 = 0.0,
                 Z0 = ElevationZ,
-                BayWidth = BayWidth > 0 ? BayWidth : 1200.0,
+                BayWidth = w,
                 JackHeight = JackHeight,
-                BayLengths = (customBayLengths != null && customBayLengths.Count > 0)
-                    ? customBayLengths
-                    : new List<double> { 1800, 1200, 1800, 1200, 1800 },
+                BayLengths = lengths,
                 FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
                 Mode = mode,
-                IsFromData = true,
+                IsFromData = true, // Nút Run bên table luôn lấy data để dựng
                 Post1Height = Post1Height,
                 Post2Height = Post2Height,
                 Post3Count = Post3Count,
@@ -270,8 +341,33 @@ namespace RevitScaffoldingTool.ViewModels
             var targetRow = SelectedBayRow ?? BayRows[0];
             int mode = GetModeFromConnectCase(targetRow.ConnectCase);
 
-            await RunBuildModeAsync(mode, string.Format("HỆ GIÀN #{0} (ID: {1}, {2}, Nhịp: {3})", 
-                targetRow.Stt, targetRow.ElementId, targetRow.ConnectCase, targetRow.BayList), targetRow.BayLengths);
+            IsBusy = true;
+            StatusMessage = string.Format("Đang thi công [Table & Data]: Hệ #{0} (ID: {1}, {2}, Nhịp: {3})...", 
+                targetRow.Stt, targetRow.ElementId, targetRow.ConnectCase, targetRow.BayList);
+
+            try
+            {
+                BuildOptions opts = CreateOptionsForTableRun(mode, targetRow);
+                BuildResult res = await RevitTask.RunAsync(app =>
+                {
+                    Document doc = app.ActiveUIDocument != null ? app.ActiveUIDocument.Document : null;
+                    if (doc == null)
+                    {
+                        return new BuildResult { Success = false, Message = "Không tìm thấy Document Revit đang mở." };
+                    }
+                    return ScaffoldingBuilder.ExecuteBuild(doc, opts);
+                });
+
+                StatusMessage = string.Format("[Table & Data] — {0}", res.Message);
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = "Lỗi thi công: " + ex.Message;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
         }
 
         private static int GetModeFromConnectCase(string connectCase)
@@ -339,15 +435,16 @@ namespace RevitScaffoldingTool.ViewModels
             }
         }
 
-        private async Task RunBuildModeAsync(int mode, string modeName, List<double> customBayLengths = null)
+        private async Task RunBuildModeAsync(int mode, string modeName)
         {
             if (IsBusy) return;
             IsBusy = true;
-            StatusMessage = string.Format("Đang thi công [Data]: {0}...", modeName);
+            string runType = IsFromData ? "[From Data]" : "[Default]";
+            StatusMessage = string.Format("Đang thi công {0}: {1}...", runType, modeName);
 
             try
             {
-                BuildOptions opts = CreateOptions(mode, customBayLengths);
+                BuildOptions opts = CreateOptionsForButtons(mode);
                 BuildResult res = await RevitTask.RunAsync(app =>
                 {
                     Document doc = app.ActiveUIDocument != null ? app.ActiveUIDocument.Document : null;
@@ -358,7 +455,7 @@ namespace RevitScaffoldingTool.ViewModels
                     return ScaffoldingBuilder.ExecuteBuild(doc, opts);
                 });
 
-                StatusMessage = string.Format("[Data] — {0}", res.Message);
+                StatusMessage = string.Format("{0} — {1}", runType, res.Message);
             }
             catch (Exception ex)
             {
