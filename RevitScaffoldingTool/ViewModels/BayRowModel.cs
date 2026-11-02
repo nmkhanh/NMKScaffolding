@@ -13,5 +13,14 @@ namespace RevitScaffoldingTool.ViewModels
         [ObservableProperty] private double _length = 0;
         [ObservableProperty] private double _width = 1200;
         [ObservableProperty] private List<double> _bayLengths = new List<double>();
+
+        // Tọa độ hình học và góc xoay hướng tuyến
+        [ObservableProperty] private double _startX = 0;
+        [ObservableProperty] private double _startY = 0;
+        [ObservableProperty] private double _startZ = 0;
+        [ObservableProperty] private double _endX = 0;
+        [ObservableProperty] private double _endY = 0;
+        [ObservableProperty] private double _endZ = 0;
+        [ObservableProperty] private double _angleDeg = 0;
     }
 }

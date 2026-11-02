@@ -157,10 +157,7 @@ namespace RevitScaffoldingTool.ViewModels
         }
 
         /// <summary>
-        /// Tạo cấu hình thực thi cho nút Run bên Table:
-        /// LUÔN KẾT HỢP DATA TỪ TABLE (Connect case, nhịp BayLengths, bề rộng Width)
-        /// VÀ DATA TỪ CỘT GIỮA (Cao độ Z, kích chân, cột chống xếp tầng, số tầng, giằng đỉnh).
-        /// Hoàn toàn không phụ thuộc vào Checkbox IsFromData.
+        /// Tạo cấu hình thực thi cho nút Run bên Table.
         /// </summary>
         private BuildOptions CreateOptionsForTableRun(int mode, BayRowModel row)
         {
@@ -174,8 +171,8 @@ namespace RevitScaffoldingTool.ViewModels
 
             return new BuildOptions
             {
-                X0 = 0.0,
-                Y0 = 0.0,
+                X0 = row != null ? row.StartX : 0.0,
+                Y0 = row != null ? row.StartY : 0.0,
                 Z0 = ElevationZ,
                 BayWidth = w,
                 JackHeight = JackHeight,
@@ -287,6 +284,23 @@ namespace RevitScaffoldingTool.ViewModels
                         Parameter pW = inst.LookupParameter("W");
                         if (pW != null && pW.HasValue) w = Math.Round(pW.AsDouble() * 304.8, 0);
 
+                        // Trích xuất tọa độ điểm đầu, điểm cuối và góc xoay hướng tuyến
+                        double sX = 0, sY = 0, sZ = 0, eX = 0, eY = 0, eZ = 0, angleDeg = 0;
+                        LocationCurve locCurve = inst.Location as LocationCurve;
+                        if (locCurve != null && locCurve.Curve != null)
+                        {
+                            XYZ p0 = locCurve.Curve.GetEndPoint(0);
+                            XYZ p1 = locCurve.Curve.GetEndPoint(1);
+                            sX = Math.Round(p0.X * 304.8, 1);
+                            sY = Math.Round(p0.Y * 304.8, 1);
+                            sZ = Math.Round(p0.Z * 304.8, 1);
+                            eX = Math.Round(p1.X * 304.8, 1);
+                            eY = Math.Round(p1.Y * 304.8, 1);
+                            eZ = Math.Round(p1.Z * 304.8, 1);
+                            XYZ dir = (p1 - p0).Normalize();
+                            angleDeg = Math.Round(Math.Atan2(dir.Y, dir.X) * 180.0 / Math.PI, 1);
+                        }
+
                         resultRows.Add(new BayRowModel
                         {
                             Stt = idx++,
@@ -295,7 +309,14 @@ namespace RevitScaffoldingTool.ViewModels
                             ConnectCase = defaultCase,
                             Length = len,
                             Width = w > 0 ? w : 1200,
-                            BayLengths = bayLengths.Count > 0 ? bayLengths : new List<double> { 1800 }
+                            BayLengths = bayLengths.Count > 0 ? bayLengths : new List<double> { 1800 },
+                            StartX = sX,
+                            StartY = sY,
+                            StartZ = sZ,
+                            EndX = eX,
+                            EndY = eY,
+                            EndZ = eZ,
+                            AngleDeg = angleDeg
                         });
                     }
 
@@ -328,6 +349,11 @@ namespace RevitScaffoldingTool.ViewModels
             }
         }
 
+        /// <summary>
+        /// NÚT RUN TRÊN BẢNG TABLE:
+        /// Thực thi theo Pipeline chuẩn: TH thẳng Row 1 -> TH thẳng Row 2 -> Connect (Row 1-2) -> TH thẳng Row 3 -> Connect (Row 2-3) -> ...
+        /// Dùng data từ Table và Cột Giữa để dựng.
+        /// </summary>
         [RelayCommand]
         private async Task RunBaysAsync()
         {
@@ -338,16 +364,15 @@ namespace RevitScaffoldingTool.ViewModels
                 return;
             }
 
-            var targetRow = SelectedBayRow ?? BayRows[0];
-            int mode = GetModeFromConnectCase(targetRow.ConnectCase);
-
             IsBusy = true;
-            StatusMessage = string.Format("Đang thi công [Table & Data]: Hệ #{0} (ID: {1}, {2}, Nhịp: {3})...", 
-                targetRow.Stt, targetRow.ElementId, targetRow.ConnectCase, targetRow.BayList);
+            StatusMessage = string.Format("Đang thi công {0} hệ giàn theo Table Pipeline (Thẳng -> Connect)...", BayRows.Count);
 
             try
             {
-                BuildOptions opts = CreateOptionsForTableRun(mode, targetRow);
+                var targetRow = SelectedBayRow ?? BayRows[0];
+                BuildOptions opts = CreateOptionsForTableRun(-100, targetRow);
+                var rowsList = BayRows.ToList();
+
                 BuildResult res = await RevitTask.RunAsync(app =>
                 {
                     Document doc = app.ActiveUIDocument != null ? app.ActiveUIDocument.Document : null;
@@ -355,14 +380,14 @@ namespace RevitScaffoldingTool.ViewModels
                     {
                         return new BuildResult { Success = false, Message = "Không tìm thấy Document Revit đang mở." };
                     }
-                    return ScaffoldingBuilder.ExecuteBuild(doc, opts);
+                    return ScaffoldingBuilder.ExecuteTableBuild(doc, opts, rowsList);
                 });
 
-                StatusMessage = string.Format("[Table & Data] — {0}", res.Message);
+                StatusMessage = res.Message;
             }
             catch (Exception ex)
             {
-                StatusMessage = "Lỗi thi công: " + ex.Message;
+                StatusMessage = "Lỗi thi công Table Pipeline: " + ex.Message;
             }
             finally
             {
