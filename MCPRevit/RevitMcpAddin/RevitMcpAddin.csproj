@@ -1,0 +1,71 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--<OutputType>Exe</OutputType>-->
+    <OutputType>Library</OutputType>
+    <XamlDebuggingInformation>true</XamlDebuggingInformation>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>true</ImplicitUsings>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <AssemblyName>RevitMcpAddin</AssemblyName>
+    <RootNamespace>RevitMcpAddin</RootNamespace>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <SkipRevitDeploy>false</SkipRevitDeploy>
+    <Configurations>Debug;Release;D2024;R2024;D2026;R2026;D2022;R2022</Configurations>
+    <Platforms>AnyCPU</Platforms>
+  </PropertyGroup>
+
+  <Choose>
+    <When Condition="$(Configuration.Contains('22'))">
+      <PropertyGroup>
+        <DefineConstants>$(DefineConstants);R22</DefineConstants>
+        <RevitVersion>2022</RevitVersion>
+        <TargetFramework>net48</TargetFramework>
+      </PropertyGroup>
+    </When>
+    <When Condition="$(Configuration.Contains('24'))">
+      <PropertyGroup>
+        <DefineConstants>$(DefineConstants);R24</DefineConstants>
+        <RevitVersion>2024</RevitVersion>
+        <TargetFramework>net48</TargetFramework>
+      </PropertyGroup>
+    </When>
+    <When Condition="$(Configuration.Contains('26')) Or '$(Configuration)' == 'Debug' Or '$(Configuration)' == 'Release'">
+      <PropertyGroup>
+        <DefineConstants>$(DefineConstants);R26</DefineConstants>
+        <RevitVersion>2026</RevitVersion>
+        <TargetFramework>net8.0-windows</TargetFramework>
+      </PropertyGroup>
+    </When>
+  </Choose>
+
+  <ItemGroup>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" />
+    <PackageReference Include="Nice3point.Revit.Api.AdWindows" Version="$(RevitVersion).*" />
+    <PackageReference Include="Revit.Async" Version="2.1.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <PackageReference Include="System.Threading.Channels" Version="8.0.0" />
+  </ItemGroup>
+
+  <Target Name="CopyBuildOutput" AfterTargets="Build" Condition="'$(SkipRevitDeploy)' != 'true'">
+    <ItemGroup>
+      <AllOutputFiles Include="$(TargetDir)**\*.*" />
+    </ItemGroup>
+    <MakeDir Directories="C:\ProgramData\Autodesk\Revit\Addins\$(RevitVersion)\RevitMcpAddin\" />
+    <Copy SourceFiles="@(AllOutputFiles)" DestinationFolder="C:\ProgramData\Autodesk\Revit\Addins\$(RevitVersion)\RevitMcpAddin\" SkipUnchangedFiles="false" />
+  </Target>
+
+  <Target Name="CopyRebuildOutput" AfterTargets="Rebuild" Condition="'$(SkipRevitDeploy)' != 'true'">
+    <ItemGroup>
+      <AllOutputFiles Include="$(TargetDir)**\*.*" />
+    </ItemGroup>
+    <MakeDir Directories="C:\ProgramData\Autodesk\Revit\Addins\$(RevitVersion)\RevitMcpAddin\" />
+    <Copy SourceFiles="@(AllOutputFiles)" DestinationFolder="C:\ProgramData\Autodesk\Revit\Addins\$(RevitVersion)\RevitMcpAddin\" SkipUnchangedFiles="false" />
+  </Target>
+</Project>

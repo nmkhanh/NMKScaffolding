@@ -4,3 +4,7 @@ RevitScaffoldingTool/obj/
 *.user
 *.suo
 .vs/
+**/bin/
+**/obj/
+**/node_modules/
+**/.vs/
