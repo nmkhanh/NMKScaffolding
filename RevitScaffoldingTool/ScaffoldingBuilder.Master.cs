@@ -6,7 +6,7 @@ namespace RevitScaffoldingTool
 {
     public static partial class ScaffoldingBuilder
     {
-        private static string ExecuteMaster6CornersContinuous(Document doc, BuildOptions opts, Level level, List<int> placedIds)
+        public static string ExecuteMaster6CornersContinuous(Document doc, BuildOptions opts, Level level, List<int> placedIds, int maxLegs = 7)
         {
             double x0 = opts.X0;
             double y0 = opts.Y0;
@@ -197,6 +197,7 @@ namespace RevitScaffoldingTool
                 if (p1 != null) { SetParam(p1, "w", 500); placedIds.Add(p1.Id.IntegerValue); }
                 if (p2 != null) { SetParam(p2, "w", 500); placedIds.Add(p2.Id.IntegerValue); }
             }
+            if (maxLegs <= 1) return null;
 
             // =========================================================================
             // 2. LEG 2 (Huong +Y, X in [x0 + 2400, x0 + 3600]: Bay 1 tieu chuan, Bay 2 la Corner 2 - Case 1.2)
@@ -291,6 +292,7 @@ namespace RevitScaffoldingTool
                 if (p3 != null) { SetParam(p3, "w", 500); placedIds.Add(p3.Id.IntegerValue); }
                 if (p4 != null) { SetParam(p4, "w", 500); placedIds.Add(p4.Id.IntegerValue); }
             }
+            if (maxLegs <= 2) return null;
 
             // =========================================================================
             // 3. LEG 3 (Huong +X, Y in [y0 + 3000, y0 + 4200]: Bay 1 tieu chuan, Bay 2 la Corner 3 - Case 1.3)
@@ -389,6 +391,7 @@ namespace RevitScaffoldingTool
                 if (p3 != null) { SetParam(p3, "w", 500); placedIds.Add(p3.Id.IntegerValue); }
                 if (p4 != null) { SetParam(p4, "w", 500); placedIds.Add(p4.Id.IntegerValue); }
             }
+            if (maxLegs <= 3) return null;
 
             // =========================================================================
             // 4. LEG 4 (Huong -Y, X in [x0 + 6000, x0 + 7200]: Bay 1 tieu chuan, Bay 2 la Corner 4 - Case 1.4)
@@ -472,6 +475,7 @@ namespace RevitScaffoldingTool
                 if (p1 != null) { SetParam(p1, "w", 500); placedIds.Add(p1.Id.IntegerValue); }
                 if (p2 != null) { SetParam(p2, "w", 500); placedIds.Add(p2.Id.IntegerValue); }
             }
+            if (maxLegs <= 4) return null;
 
             // =========================================================================
             // 5. LEG 5 (Huong +X, Y in [y0, y0 + 1200]: Bay 1 tieu chuan, Bay 2 la Corner 5 - Case 2.1)
@@ -542,6 +546,7 @@ namespace RevitScaffoldingTool
                 if (p1 != null) { SetParam(p1, "w", 500); placedIds.Add(p1.Id.IntegerValue); }
                 if (p2 != null) { SetParam(p2, "w", 500); placedIds.Add(p2.Id.IntegerValue); }
             }
+            if (maxLegs <= 5) return null;
 
             // =========================================================================
             // 6. LEG 6 (Huong +Y, X in [x0 + 10800, x0 + 12000]: Bay 1 tieu chuan, Bay 2 la Corner 6 - Case 2.2)
@@ -675,6 +680,7 @@ namespace RevitScaffoldingTool
                 if (p1 != null) { SetParam(p1, "w", 500); placedIds.Add(p1.Id.IntegerValue); }
                 if (p2 != null) { SetParam(p2, "w", 500); placedIds.Add(p2.Id.IntegerValue); }
             }
+            if (maxLegs <= 6) return null;
 
             // =========================================================================
             // 7. LEG 7 (Doan ket thuc, Huong +X, Y in [y0 + 5400, y0 + 6600]: 2 nhip 1800 mm)

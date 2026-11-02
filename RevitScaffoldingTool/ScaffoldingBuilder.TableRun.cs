@@ -130,6 +130,31 @@ namespace RevitScaffoldingTool
 
             int nRows = rows.Count;
 
+            // KIỂM TRA CHUỖI GÓC NỐI LIÊN TỤC THEO MASTER (6 TRƯỜNG HỢP LIÊN TỤC):
+            // Kế thừa 100% chuẩn ALINCO từ ExecuteMaster6CornersContinuous (Master.cs)
+            bool isContinuousMaster = false;
+            if (nRows >= 2 && rows[0].ConnectCase == "TH 1.1")
+            {
+                isContinuousMaster = true;
+                string[] expectedCases = { "TH 1.1", "TH 1.2", "TH 1.3", "TH 1.4", "TH 2.1", "TH 2.2" };
+                for (int c = 0; c < Math.Min(nRows - 1, expectedCases.Length); c++)
+                {
+                    if (rows[c].ConnectCase != expectedCases[c])
+                    {
+                        isContinuousMaster = false;
+                        break;
+                    }
+                }
+            }
+
+            if (isContinuousMaster)
+            {
+                opts.X0 = rows[0].StartX;
+                opts.Y0 = rows[0].StartY;
+                if (rows[0].StartZ != 0) opts.Z0 = rows[0].StartZ;
+                return ExecuteMaster6CornersContinuous(doc, opts, level, placedIds, nRows);
+            }
+
             // TRƯỜNG HỢP 1: CHỈ CÓ 1 HÀNG TRONG TABLE (Người dùng test 1 hàng đơn lẻ)
             if (nRows == 1)
             {
