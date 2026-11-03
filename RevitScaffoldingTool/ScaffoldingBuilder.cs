@@ -13,6 +13,9 @@ namespace RevitScaffoldingTool
         public List<double> BayLengths { get; set; } = new List<double>();
         public string ConnectCase { get; set; } = "TH 0";
         public double Width { get; set; } = 1200.0;
+        public double StartX { get; set; } = 0.0;
+        public double StartY { get; set; } = 0.0;
+        public bool HasCoords { get; set; } = false;
     }
 
     public class BuildOptions

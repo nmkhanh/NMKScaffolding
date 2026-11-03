@@ -1,0 +1,18 @@
+{
+  "action": "build_family",
+  "parameters": [
+    { "name": "Bay_Length", "isInstance": false, "formula": null },
+    { "name": "Bay_Width", "isInstance": false, "formula": null },
+    { "name": "Story_Height", "isInstance": false, "formula": null },
+    { "name": "Top_Guardrail_Height", "isInstance": false, "formula": null },
+    { "name": "Plank_Width", "isInstance": false, "formula": null },
+    { "name": "ToeBoard_Height", "isInstance": false, "formula": null },
+    { "name": "Jack_Base_Adjustment", "isInstance": true, "formula": null }
+  ],
+  "referencePlanes": [
+    { "name": "Ref_Length_Left", "orientation": "Vertical", "defaultOffsetMm": -900 },
+    { "name": "Ref_Length_Right", "orientation": "Vertical", "defaultOffsetMm": 900 },
+    { "name": "Ref_Width_Front", "orientation": "Horizontal", "defaultOffsetMm": -450 },
+    { "name": "Ref_Width_Back", "orientation": "Horizontal", "defaultOffsetMm": 450 }
+  ]
+}

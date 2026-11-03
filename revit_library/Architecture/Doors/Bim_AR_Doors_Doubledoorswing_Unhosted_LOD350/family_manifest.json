@@ -1,0 +1,21 @@
+{
+  "familyName": "Bim_AR_Doors_Doubledoorswing_Unhosted_LOD350",
+  "originator": "BIM",
+  "discipline": {
+    "name": "Architecture",
+    "code": "AR",
+    "prefix": "AR"
+  },
+  "category": "Doors",
+  "recommendedTemplate": "Metric Door.rft",
+  "hostingType": "Unhosted",
+  "lod": "LOD350",
+  "familyPath": "C:\\Users\\Admin\\Documents\\antigravity\\nifty-chandrasekhar\\revit_library\\Architecture\\Doors\\Bim_AR_Doors_Doubledoorswing_Unhosted_LOD350",
+  "createdAt": "2026-10-26T03:40:22.836Z",
+  "files": {
+    "rfa": "C:\\Users\\Admin\\Documents\\antigravity\\nifty-chandrasekhar\\revit_library\\Architecture\\Doors\\Bim_AR_Doors_Doubledoorswing_Unhosted_LOD350\\Bim_AR_Doors_Doubledoorswing_Unhosted_LOD350.rfa",
+    "catalogTxt": "C:\\Users\\Admin\\Documents\\antigravity\\nifty-chandrasekhar\\revit_library\\Architecture\\Doors\\Bim_AR_Doors_Doubledoorswing_Unhosted_LOD350\\Types\\Bim_AR_Doors_Doubledoorswing_Unhosted_LOD350.txt",
+    "specMd": "C:\\Users\\Admin\\Documents\\antigravity\\nifty-chandrasekhar\\revit_library\\Architecture\\Doors\\Bim_AR_Doors_Doubledoorswing_Unhosted_LOD350\\Documentation\\SPEC.md",
+    "automationScript": "C:\\Users\\Admin\\Documents\\antigravity\\nifty-chandrasekhar\\revit_library\\Architecture\\Doors\\Bim_AR_Doors_Doubledoorswing_Unhosted_LOD350\\Scripts\\create_family.py"
+  }
+}

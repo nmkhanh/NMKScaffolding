@@ -27,9 +27,9 @@ if (-not (Test-Path $masterFile)) {
 
 $vmFile = "RevitScaffoldingTool\ViewModels\ScaffoldingViewModel.cs"
 $vmContent = Get-Content $vmFile -Raw
-foreach ($prop in @("_buttonL0", "_buttonL1", "_buttonL2", "_buttonL3", "_buttonL4", "_buttonL5", "_buttonL6", "_checkCase11", "_checkCase12", "_checkCase13", "_checkCase14", "_checkCase21", "_checkCase22")) {
+foreach ($prop in @("_buttonL0", "_buttonL1", "_buttonL2", "_buttonL3", "_buttonL4", "_buttonL5", "_buttonL6", "_checkCase11", "_checkCase12", "_checkCase13", "_checkCase14", "_checkCase21", "_checkCase22", "DetermineConnectCase")) {
     if ($vmContent -notmatch $prop) {
-        $errors += "ScaffoldingViewModel.cs thieu thuoc tinh $prop"
+        $errors += "ScaffoldingViewModel.cs thieu thuoc tinh/ham $prop"
     }
 }
 

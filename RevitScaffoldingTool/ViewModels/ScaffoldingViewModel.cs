@@ -342,13 +342,6 @@ namespace RevitScaffoldingTool.ViewModels
                             }
                         }
 
-                        string defaultCase = "TH 1.1";
-                        if (idx == 2) defaultCase = "TH 1.2";
-                        else if (idx == 3) defaultCase = "TH 1.3";
-                        else if (idx == 4) defaultCase = "TH 1.4";
-                        else if (idx == 5) defaultCase = "TH 2.1";
-                        else if (idx == 6) defaultCase = "TH 2.2";
-
                         double len = 0;
                         Parameter pLen = inst.LookupParameter("Length");
                         if (pLen != null && pLen.HasValue) len = Math.Round(pLen.AsDouble() * 304.8, 0);
@@ -378,7 +371,7 @@ namespace RevitScaffoldingTool.ViewModels
                             Stt = idx++,
                             ElementId = inst.Id.IntegerValue.ToString(),
                             BayList = bayParts.Count > 0 ? string.Join(",", bayParts) : "1800",
-                            ConnectCase = defaultCase,
+                            ConnectCase = "TH 0",
                             Length = len,
                             Width = w > 0 ? w : 1200,
                             BayLengths = bayLengths.Count > 0 ? bayLengths : new List<double> { 1800 },
@@ -392,26 +385,22 @@ namespace RevitScaffoldingTool.ViewModels
                         });
                     }
 
-                    // Hàng cuối: nếu có nối kín về hàng 1 (khoảng cách End hàng cuối tới Start hàng 1 <= 2500 mm và >= 3 hàng) thì giữ Connect, còn không thì đặt "TH 0" (bỏ qua connect)
+                    // Xác định Connect (TH) cho từng hàng dựa trực tiếp vào dữ liệu hình học & nhịp quét được từ Revit:
+                    // - Hàng i (0 .. Count-2) xét kết nối với hàng i+1
+                    // - Hàng cuối (Count-1) xét kết nối với hàng đầu (0) nếu có từ 3 hàng trở lên; nếu không nối thì trả về "TH 0"
+                    for (int i = 0; i < resultRows.Count - 1; i++)
+                    {
+                        resultRows[i].ConnectCase = DetermineConnectCase(resultRows[i], resultRows[i + 1]);
+                    }
+
                     if (resultRows.Count > 0)
                     {
                         var lastRow = resultRows[resultRows.Count - 1];
-                        bool connectsToFirst = false;
                         if (resultRows.Count >= 3)
                         {
-                            var firstRow = resultRows[0];
-                            bool hasCoords = (Math.Abs(firstRow.StartX) > 0.1 || Math.Abs(firstRow.StartY) > 0.1 || Math.Abs(lastRow.EndX) > 0.1 || Math.Abs(lastRow.EndY) > 0.1);
-                            if (hasCoords)
-                            {
-                                double dist = Math.Sqrt(Math.Pow(lastRow.EndX - firstRow.StartX, 2) + Math.Pow(lastRow.EndY - firstRow.StartY, 2));
-                                if (dist <= 2500.0)
-                                {
-                                    connectsToFirst = true;
-                                }
-                            }
+                            lastRow.ConnectCase = DetermineConnectCase(lastRow, resultRows[0]);
                         }
-
-                        if (!connectsToFirst)
+                        else
                         {
                             lastRow.ConnectCase = "TH 0";
                         }
@@ -453,6 +442,91 @@ namespace RevitScaffoldingTool.ViewModels
             }
         }
 
+        /// <summary>
+        /// Xác định trường hợp kết nối góc (TH 1.1, TH 1.2, TH 1.3, TH 1.4, TH 2.1, TH 2.2 hoặc TH 0)
+        /// dựa trực tiếp trên dữ liệu hình học (Start, End, góc rẽ, bề rộng W) và danh sách nhịp quét được từ 2 instance Review_DetailLine.
+        /// </summary>
+        private static string DetermineConnectCase(BayRowModel rowA, BayRowModel rowB)
+        {
+            if (rowA == null || rowB == null) return "TH 0";
+
+            double dxA = rowA.EndX - rowA.StartX;
+            double dyA = rowA.EndY - rowA.StartY;
+            double lenVecA = Math.Sqrt(dxA * dxA + dyA * dyA);
+
+            double dxB = rowB.EndX - rowB.StartX;
+            double dyB = rowB.EndY - rowB.StartY;
+            double lenVecB = Math.Sqrt(dxB * dxB + dyB * dyB);
+
+            if (lenVecA < 1.0 || lenVecB < 1.0) return "TH 0";
+
+            // Vector đơn vị dọc theo dãy A (uA) và pháp tuyến phải (nA: hướng từ mép trước d=0 về mép sau d=W)
+            double uAx = dxA / lenVecA;
+            double uAy = dyA / lenVecA;
+            double nAx = uAy;
+            double nAy = -uAx;
+
+            double uBx = dxB / lenVecB;
+            double uBy = dyB / lenVecB;
+
+            double totalBayLenA = (rowA.BayLengths != null && rowA.BayLengths.Count > 0)
+                ? rowA.BayLengths.Sum()
+                : (rowA.Length > 0 ? rowA.Length : lenVecA);
+            double lastBayA = (rowA.BayLengths != null && rowA.BayLengths.Count > 0)
+                ? rowA.BayLengths[rowA.BayLengths.Count - 1]
+                : totalBayLenA;
+
+            double wA = rowA.Width > 0 ? rowA.Width : 1200.0;
+            double wB = rowB.Width > 0 ? rowB.Width : 1200.0;
+
+            // Tọa độ tương đối của điểm đầu dãy B trong hệ trục địa phương của dãy A
+            double relX = rowB.StartX - rowA.StartX;
+            double relY = rowB.StartY - rowA.StartY;
+            double s = relX * uAx + relY * uAy;
+            double d = relX * nAx + relY * nAy;
+
+            // Tích có hướng 2D: cross > 0.5 => Rẽ trái (+90° CCW), cross < -0.5 => Rẽ phải (-90° CW)
+            double cross = uAx * uBy - uAy * uBx;
+            if (Math.Abs(cross) < 0.5) return "TH 0";
+
+            // Kiểm tra khoảng cách ngang d phải nằm trong phạm vi bề rộng giàn A
+            if (d < -wA - 400.0 || d > wA + 400.0) return "TH 0";
+
+            // Tọa độ tâm bề rộng giàn B chiếu lên phương dọc của giàn A:
+            // - Khi rẽ trái (cross > 0): pháp tuyến phải của B cùng chiều uA -> B chiếm [s, s + wB]
+            // - Khi rẽ phải (cross < 0): pháp tuyến phải của B ngược chiều uA -> B chiếm [s - wB, s]
+            double sMid = (cross > 0) ? (s + 0.5 * wB) : (s - 0.5 * wB);
+
+            // Kiểm tra vị trí dọc sMid phải nằm gần cuối dãy A (trong nhịp cuối hoặc vươn ra ngoài đầu dãy A)
+            if (sMid < totalBayLenA - wB - 400.0 || sMid > totalBayLenA + wB + 400.0) return "TH 0";
+
+            bool isOuterCorner = sMid >= (totalBayLenA - 100.0);
+            bool isLastBayEqualW = Math.Abs(lastBayA - wB) <= 50.0;
+            bool isVerticalA = Math.Abs(uAy) > Math.Abs(uAx);
+
+            if (isOuterCorner)
+            {
+                // Nhóm 2: Góc vươn ngoài đầu dãy A ([L_A, L_A + W_B])
+                if (cross > 0)
+                {
+                    return "TH 2.1";
+                }
+                return (uBx + uBy >= 0.0) ? "TH 2.1" : "TH 2.2";
+            }
+            else
+            {
+                // Nhóm 1: Góc thu trong nhịp cuối của dãy A ([L_A - W_B, L_A])
+                if (cross > 0)
+                {
+                    return (isLastBayEqualW || isVerticalA) ? "TH 1.2" : "TH 1.1";
+                }
+                else
+                {
+                    return (isLastBayEqualW || isVerticalA) ? "TH 1.4" : "TH 1.3";
+                }
+            }
+        }
+
         private BuildOptions CreateOptionsForTableRun()
         {
             SaveSettings();
@@ -463,11 +537,15 @@ namespace RevitScaffoldingTool.ViewModels
             {
                 if (r == null) continue;
                 var bays = ScaffoldingBuilder.ParseBayLengths(r.BayList, 1800.0);
+                bool hasCoords = Math.Abs(r.StartX) > 0.01 || Math.Abs(r.StartY) > 0.01 || Math.Abs(r.EndX) > 0.01 || Math.Abs(r.EndY) > 0.01;
                 tableRows.Add(new TableRowOption
                 {
                     BayLengths = bays,
                     ConnectCase = string.IsNullOrWhiteSpace(r.ConnectCase) ? "TH 0" : r.ConnectCase,
-                    Width = r.Width > 0 ? r.Width : w
+                    Width = r.Width > 0 ? r.Width : w,
+                    StartX = r.StartX,
+                    StartY = r.StartY,
+                    HasCoords = hasCoords
                 });
             }
 

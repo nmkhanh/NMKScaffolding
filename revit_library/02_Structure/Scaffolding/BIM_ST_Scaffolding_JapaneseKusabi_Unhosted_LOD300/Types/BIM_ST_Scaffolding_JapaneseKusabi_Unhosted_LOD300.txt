@@ -1,0 +1,8 @@
+,Bay_Length##length##millimeters,Bay_Width##length##millimeters,Story_Height##length##millimeters,Top_Guardrail_Height##length##millimeters,Plank_Width##length##millimeters,ToeBoard_Height##length##millimeters,Number_Of_Middle_Stories##other##
+Standard_1800x900_3Tiers,1800.0,900.0,1800.0,900.0,400.0,150.0,1
+Compact_1800x600_3Tiers,1800.0,600.0,1800.0,900.0,240.0,150.0,1
+SubModule_1500x900_3Tiers,1500.0,900.0,1800.0,900.0,400.0,150.0,1
+SubModule_1200x900_3Tiers,1200.0,900.0,1800.0,900.0,400.0,150.0,1
+ShortModule_900x900_3Tiers,900.0,900.0,1800.0,900.0,400.0,150.0,1
+HighClearance_1800x900_1900H,1800.0,900.0,1900.0,900.0,400.0,150.0,1
+Standard_1800x900_4Tiers,1800.0,900.0,1800.0,900.0,400.0,150.0,2

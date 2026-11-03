@@ -1,0 +1,86 @@
+﻿Created At: 2026-11-01T16:43:07+07:00
+Tool is running as a background task with task id: 5365d727-08e0-4a5f-a070-96ffc1ffee96/task-2309
+Task Description: $sw = [System.Diagnostics.Stopwatch]::StartNew()
+
+function Place-Elem($fam, $x, $y, $z, $rot=0, $len=0, $w=0, $h=0) {
+    $b = @{familyName=$fam; x=$x; y=$y; z=$z; rotDeg=$rot} | ConvertTo-Json
+    $res = Invoke-RestMethod -Uri 'http://127.0.0.1:4848/place_instance' -Method Post -Body $b -ContentType 'application/json'
+    $id = $res.data.instanceId
+    if ($len -gt 0) {
+        Invoke-RestMethod -Uri 'http://127.0.0.1:4848/set_parameter' -Method Post -Body (@{elementId=$id; paramName='l'; value=$len} | ConvertTo-Json) -ContentType 'application/json' | Out-Null
+    }
+    if ($w -gt 0) {
+        Invoke-RestMethod -Uri 'http://127.0.0.1:4848/set_parameter' -Method Post -Body (@{elementId=$id; paramName='w'; value=$w} | ConvertTo-Json) -ContentType 'application/json' | Out-Null
+    }
+    if ($h -gt 0) {
+        Invoke-RestMethod -Uri 'http://127.0.0.1:4848/set_parameter' -Method Post -Body (@{elementId=$id; paramName='h'; value=$h} | ConvertTo-Json) -ContentType 'application/json' | Out-Null
+    }
+    try {
+        Invoke-RestMethod -Uri 'http://127.0.0.1:4848/set_parameter' -Method Post -Body (@{elementId=$id; paramName='Offset from Host'; value=$z} | ConvertTo-Json) -ContentType 'application/json' | Out-Null
+    } catch {}
+    return $id
+}
+
+function Set-ColParams($id, $paramsDict) {
+    foreach ($k in $paramsDict.Keys) {
+        Invoke-RestMethod -Uri 'http://127.0.0.1:4848/set_parameter' -Method Post -Body (@{elementId=$id; paramName=$k; value=$paramsDict[$k]} | ConvertTo-Json) -ContentType 'application/json' | Out-Null
+    }
+}
+
+$p2700 = [ordered]@{
+    h=2700; h1=135; h2=380; h3=830; h4=1280; h5=1730; h6=2180; h7=2630;
+    h8=0; h9=0; h10=0; h11=0; h12=0; h13=0; h14=0; h15=0
+}
+$p3600 = [ordered]@{
+    h=3600; h1=380; h2=830; h3=1280; h4=1730; h5=2180; h6=2630; h7=3080; h8=3530;
+    h9=0; h10=0; h11=0; h12=0; h13=0; h14=0; h15=0
+}
+
+$x0 = 15000
+$xLines = @($x0, $
+<truncated 6464 bytes>
+Bot 1830 0 1200 | Out-Null
+# Lan can kÃ©p SÃ n 1:
+Place-Elem '4' $xIn $yTop 2280 270 1800 | Out-Null
+Place-Elem '4' $xIn $yTop 2730 270 1800 | Out-Null
+Place-Elem '4' $xOut $yTop 2280 270 1800 | Out-Null
+Place-Elem '4' $xOut $yTop 2730 270 1800 | Out-Null
+Place-Elem '4' $xIn $yBot 2280 0 1200 | Out-Null
+Place-Elem '4' $xIn $yBot 2730 0 1200 | Out-Null
+$count += 13
+
+# 7. SÃ n thao tÃ¡c 2 (Z = 3630 mm):
+Place-Elem '4' $xIn $yTop 3630 0 1200 | Out-Null
+Place-Elem '4' $xIn $yBot 3630 0 1200 | Out-Null
+Place-Elem '6' ($xIn + 345) $yTop 3630 270 1800 500 | Out-Null
+Place-Elem '6' ($xOut - 345) $yTop 3630 270 1800 500 | Out-Null
+Place-Elem '7' ($xIn + 66) $yTop 3630 270 1800 | Out-Null
+Place-Elem '7' ($xOut - 66) $yTop 3630 270 1800 | Out-Null
+Place-Elem '7' $xIn $yBot 3630 0 1200 | Out-Null
+# Lan can kÃ©p SÃ n 2:
+Place-Elem '4' $xIn $yTop 4080 270 1800 | Out-Null
+Place-Elem '4' $xIn $yTop 4530 270 1800 | Out-Null
+Place-Elem '4' $xOut $yTop 4080 270 1800 | Out-Null
+Place-Elem '4' $xOut $yTop 4530 270 1800 | Out-Null
+Place-Elem '4' $xIn $yBot 4080 0 1200 | Out-Null
+Place-Elem '4' $xIn $yBot 4530 0 1200 | Out-Null
+$count += 13
+
+# 8. Giáº±ng Ä‘á»‰nh (Z = 6330 mm):
+Place-Elem '4' $xIn $yTop 6330 270 1800 | Out-Null
+Place-Elem '4' $xOut $yTop 6330 270 1800 | Out-Null
+Place-Elem '4' $xIn $yTop 6330 0 1200 | Out-Null
+Place-Elem '4' $xIn $yBot 6330 0 1200 | Out-Null
+$count += 4
+
+$sw.Stop()
+[PSCustomObject]@{
+    model = "Model 2 (-Y Corner Return)"
+    offsetLocation = "X = $x0 to $($x0 + 7800)"
+    cornerBay = "X: [$xIn, $xOut], Y: [$yBot, $yTop]"
+    placedElements = $count
+    elapsedMs = $sw.ElapsedMilliseconds
+} | Format-List
+Task logs are available at: file:///C:/Users/Admin/.gemini/antigravity/brain/5365d727-08e0-4a5f-a070-96ffc1ffee96/.system_generated/tasks/task-2309.log
+YOU MUST TAKE ONE OF THE FOLLOWING TWO ACTIONS: A) either proceed to other relevant work (if any) or, B) simply update the user with a short message (that you have launched the command and will wait for it to finish) and end the turn.
+ DO NOTHING ELSE.

@@ -1,0 +1,61 @@
+{
+  "family_name": "BIM_ST_Scaffolding_JapaneseKusabi_Unhosted_LOD300",
+  "category": "Generic Models",
+  "discipline": "ST",
+  "lod": "LOD300",
+  "host_type": "Unhosted",
+  "originator": "BIM",
+  "version": "1.0.0",
+  "revit_version": "2022",
+  "standard": "JIS A 8951 / Japanese Kusabi Scaffolding",
+  "sub_families": [
+    {
+      "name": "BIM_ST_Scaff_SoleBoard_Shared",
+      "japanese_name": "敷板 (Shikiban)",
+      "shared": true,
+      "description": "Tấm ván lót đế phân bố tải trọng chân cột xuống nền"
+    },
+    {
+      "name": "BIM_ST_Scaff_JackBase_Shared",
+      "japanese_name": "ジャッキベース (Jack Base)",
+      "shared": true,
+      "description": "Kích chân điều chỉnh ren nâng hạ thăng bằng cao độ"
+    },
+    {
+      "name": "BIM_ST_Scaff_StandardPost_Shared",
+      "japanese_name": "建地 (Tateji)",
+      "shared": true,
+      "description": "Cột chống đơn chuẩn Nhật phi 48.6mm tích hợp cụm tai nêm đĩa pocket"
+    },
+    {
+      "name": "BIM_ST_Scaff_Ledger_Shared",
+      "japanese_name": "布材 / 手摺 (Nunozai / Tesuri)",
+      "shared": true,
+      "description": "Thanh giằng ngang kiêm tay vịn lan can bảo vệ có nêm gõ khóa"
+    },
+    {
+      "name": "BIM_ST_Scaff_CrossBrace_Shared",
+      "japanese_name": "筋交い (Sujikai)",
+      "shared": true,
+      "description": "Thanh giằng chéo ổn định không gian giàn giáo"
+    },
+    {
+      "name": "BIM_ST_Scaff_PlankWalkway_Shared",
+      "japanese_name": "布板 / アンチ (Nunobita / Anti)",
+      "shared": true,
+      "description": "Mâm sàn kim loại thao tác dập lỗ chống trượt và móc kẹp an toàn"
+    },
+    {
+      "name": "BIM_ST_Scaff_ToeBoard_Shared",
+      "japanese_name": "幅木 (Habaki)",
+      "shared": true,
+      "description": "Tấm chắn chân / len chân chống rơi vật tư theo luật An'ei-soku"
+    },
+    {
+      "name": "BIM_ST_Scaff_TopPost_Shared",
+      "japanese_name": "手摺柱 (Tesuri-bashira)",
+      "shared": true,
+      "description": "Cột lan can đỉnh trên cùng cho sàn thao tác cao nhất"
+    }
+  ]
+}
