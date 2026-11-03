@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net48</TargetFramework>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <LangVersion>latest</LangVersion>
@@ -9,23 +8,54 @@
     <PlatformTarget>x64</PlatformTarget>
     <RootNamespace>RevitScaffoldingTool</RootNamespace>
     <AssemblyName>RevitScaffoldingTool</AssemblyName>
-    <OutputPath>..\bin\</OutputPath>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <Configurations>Debug;Release;R2022;R2024;R2026</Configurations>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
+
+  <Choose>
+    <When Condition="$(Configuration.Contains('22')) Or '$(Configuration)' == 'Debug' Or '$(Configuration)' == 'Release'">
+      <PropertyGroup>
+        <DefineConstants>$(DefineConstants);R22</DefineConstants>
+        <RevitVersion>2022</RevitVersion>
+        <TargetFramework>net48</TargetFramework>
+        <OutputPath>..\bin\</OutputPath>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+      </PropertyGroup>
+      <ItemGroup>
+        <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2022.*" />
+        <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2022.*" />
+      </ItemGroup>
+    </When>
+    <When Condition="$(Configuration.Contains('24'))">
+      <PropertyGroup>
+        <DefineConstants>$(DefineConstants);R24</DefineConstants>
+        <RevitVersion>2024</RevitVersion>
+        <TargetFramework>net48</TargetFramework>
+        <OutputPath>..\bin\R2024\</OutputPath>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+      </PropertyGroup>
+      <ItemGroup>
+        <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2024.*" />
+        <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2024.*" />
+      </ItemGroup>
+    </When>
+    <When Condition="$(Configuration.Contains('26'))">
+      <PropertyGroup>
+        <DefineConstants>$(DefineConstants);R26</DefineConstants>
+        <RevitVersion>2026</RevitVersion>
+        <TargetFramework>net8.0-windows</TargetFramework>
+        <OutputPath>..\bin\R2026\</OutputPath>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+      </PropertyGroup>
+      <ItemGroup>
+        <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2026.*" />
+        <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2026.*" />
+      </ItemGroup>
+    </When>
+  </Choose>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="Revit.Async" Version="2.1.1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="C:\Program Files\Autodesk\Revit 2022\RevitAPI.dll">
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="C:\Program Files\Autodesk\Revit 2022\RevitAPIUI.dll">
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="System.Configuration" />
   </ItemGroup>
 </Project>

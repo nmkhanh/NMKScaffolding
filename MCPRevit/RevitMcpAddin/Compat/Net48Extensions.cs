@@ -52,8 +52,12 @@ namespace RevitMcpAddin.Compat
             return await task.ConfigureAwait(false);
         }
     }
+}
+#endif
 
-    internal static class ElementCompat
+namespace Autodesk.Revit.DB
+{
+    public static class ElementCompat
     {
         public static Autodesk.Revit.DB.ElementId CreateElementId(long id)
         {
@@ -74,4 +78,3 @@ namespace RevitMcpAddin.Compat
         }
     }
 }
-#endif

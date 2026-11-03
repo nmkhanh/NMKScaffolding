@@ -387,7 +387,7 @@ namespace RevitScaffoldingTool.ViewModels
                         resultRows.Add(new BayRowModel
                         {
                             Stt = idx++,
-                            ElementId = inst.Id.IntegerValue.ToString(),
+                            ElementId = inst.Id.GetIdValue().ToString(),
                             BayList = bayParts.Count > 0 ? string.Join(",", bayParts) : "1800",
                             ConnectCase = "TH 0",
                             Length = len,
