@@ -525,11 +525,9 @@ namespace RevitScaffoldingTool.ViewModels
             if (isOuterCorner)
             {
                 // Nhóm 2: Góc vươn ngoài đầu dãy A ([L_A, L_A + W_B])
-                if (cross > 0)
-                {
-                    return "TH 2.1";
-                }
-                return (uBx + uBy >= 0.0) ? "TH 2.1" : "TH 2.2";
+                // cross > 0: Rẽ trái (+90° CCW) -> TH 2.1 (Mép sau phẳng)
+                // cross < 0: Rẽ phải (-90° CW)  -> TH 2.2 (Mép trước phẳng)
+                return (cross > 0) ? "TH 2.1" : "TH 2.2";
             }
             else
             {

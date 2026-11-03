@@ -2622,52 +2622,42 @@ namespace RevitScaffoldingTool
                 {
                     CloseLocalGable(0.0, true);
                 }
-                else if (prevConn == "TH 2.1" || prevConn == "TH 2.2")
+                else if (prevConn == "TH 2.1")
                 {
-                    // Nhịp đầu tiên (bay 0) của hàng hiện tại là nhịp góc vươn ngoài (Outer Corner)
+                    // Nhịp đầu tiên (bay 0) của hàng hiện tại là nhịp góc vươn ngoài TH 2.1 (Mép sau phẳng)
+                    // Chuẩn hóa 100% đồng bộ với ExecuteCase2_1:
+                    // - Đầu hồi lối vào (lx = 0): đặt giằng chéo Family 5 từ (0, 0) đến (0, -W) với góc -90° (tương đương xA, yBack góc 0°)
+                    // - Vách ngoài (ly = -W): đặt giằng chéo Family 5 góc 0° suốt chiều dài L_first
+                    // - Vách giật cấp trong (ly = 0, nếu L_A > 10): đặt lan can an toàn Family 4 (zH1, zH3, zH6, zH7, topZ)
                     double L_first = curBays[0];
                     double L_A = (L_first - wPrev > 10.0) ? (L_first - wPrev) : 0.0;
 
-                    bool entersFromBackEdge = true;
-                    if (prevRow != null && prevRow.HasCoords && curRow.HasCoords)
-                    {
-                        double pRad = prevRow.AngleDeg * Math.PI / 180.0;
-                        double crossPrev = Math.Cos(pRad) * sinA - Math.Sin(pRad) * cosA;
-                        entersFromBackEdge = (crossPrev < 0.0);
-                    }
-                    else
-                    {
-                        entersFromBackEdge = (prevConn == "TH 2.2");
-                    }
-
-                    double lyOuter = entersFromBackEdge ? 0.0 : -W;
-                    double lyInner = entersFromBackEdge ? -W : 0.0;
-                    double tbOuterLy = entersFromBackEdge ? -66.0 : (-W + 66.0);
-                    double tbInnerLy = entersFromBackEdge ? (-W + 66.0) : -66.0;
-
                     EnsureLocalCol(0.0, -W); EnsureLocalCol(0.0, 0.0);
                     EnsureLocalCol(L_first, -W); EnsureLocalCol(L_first, 0.0);
-                    if (L_A > 10.0) EnsureLocalCol(wPrev, lyInner);
+                    if (L_A > 10.0) EnsureLocalCol(wPrev, 0.0);
 
-                    PlaceLocalTransom(0.0);
+                    // Transoms và Baseboards chân cột (h1 và z0)
+                    PlaceLocalTransomAt(0.0, 0.0, -90.0, W);
                     PlaceLocalTransom(L_first);
-                    PlaceLocalTransomAt(0.0, lyInner, 0.0, wPrev);
-                    PlaceLocalBaseboard(0.0, -W, 90.0, W);
+                    PlaceLocalBaseboard(0.0, 0.0, -90.0, W);
 
-                    PlaceLocalBaseboard(0.0, lyOuter, 0.0, L_first);
-                    PlaceLocal(sym4, 0.0, lyOuter, zH1, 0.0, "l", L_first);
-                    if (opts != null && opts.HasTopTransom)
-                    {
-                        PlaceLocal(sym4, 0.0, lyOuter, topZ, 0.0, "l", L_first);
-                    }
+                    PlaceLocalBaseboard(0.0, -W, 0.0, L_first);
+                    PlaceLocal(sym4, 0.0, -W, zH1, 0.0, "l", L_first);
 
                     if (L_A > 10.0)
                     {
-                        PlaceLocalBaseboard(wPrev, lyInner, 0.0, L_A);
-                        PlaceLocal(sym4, wPrev, lyInner, zH1, 0.0, "l", L_A);
-                        if (opts != null && opts.HasTopTransom)
+                        PlaceLocalBaseboard(wPrev, 0.0, 0.0, L_A);
+                        PlaceLocal(sym4, wPrev, 0.0, zH1, 0.0, "l", L_A);
+                    }
+
+                    if (opts != null && opts.HasTopTransom)
+                    {
+                        PlaceLocal(sym4, 0.0, 0.0, topZ, -90.0, "l", W);
+                        PlaceLocal(sym4, L_first, 0.0, topZ, -90.0, "l", W);
+                        PlaceLocal(sym4, 0.0, -W, topZ, 0.0, "l", L_first);
+                        if (L_A > 10.0)
                         {
-                            PlaceLocal(sym4, wPrev, lyInner, topZ, 0.0, "l", L_A);
+                            PlaceLocal(sym4, wPrev, 0.0, topZ, 0.0, "l", L_A);
                         }
                     }
 
@@ -2679,42 +2669,113 @@ namespace RevitScaffoldingTool
                         double zH6 = z0 + jackH + 2180.0 + sOff;
                         double zH7 = z0 + jackH + 2630.0 + sOff;
 
-                        if (prevConn == "TH 2.1")
-                        {
-                            PlaceLocalBraces(0.0, -W, 90.0, W, s);
-                            PlaceLocalBraces(0.0, lyOuter, 0.0, L_first, s);
-                            if (L_A > 10.0)
-                            {
-                                PlaceLocal(sym4, wPrev, lyInner, zH3, 0.0, "l", L_A);
-                                PlaceLocal(sym4, wPrev, lyInner, zH6, 0.0, "l", L_A);
-                                PlaceLocal(sym4, wPrev, lyInner, zH7, 0.0, "l", L_A);
-                            }
-                        }
-                        else
-                        {
-                            // TH 2.2: Vách ngoài dùng lan can Family 4, vách giật cấp trong dùng giằng chéo Family 5 (không giằng dọc chỗ giằng chéo)
-                            PlaceLocal(sym4, 0.0, -W, zH3, 90.0, "l", W);
-                            PlaceLocal(sym4, 0.0, -W, zH6, 90.0, "l", W);
-                            PlaceLocal(sym4, 0.0, -W, zH7, 90.0, "l", W);
+                        // 1. Giằng chéo Family 5: đầu hồi xA -> xB (góc -90°) và vách ngoài xB (góc 0°)
+                        PlaceLocalBraces(0.0, 0.0, -90.0, W, s);
+                        PlaceLocalBraces(0.0, -W, 0.0, L_first, s);
 
-                            PlaceLocal(sym4, 0.0, lyOuter, zH3, 0.0, "l", L_first);
-                            PlaceLocal(sym4, 0.0, lyOuter, zH6, 0.0, "l", L_first);
-                            PlaceLocal(sym4, 0.0, lyOuter, zH7, 0.0, "l", L_first);
-
-                            if (L_A > 10.0)
-                            {
-                                PlaceLocalBraces(wPrev, lyInner, 0.0, L_A, s);
-                            }
+                        // 2. Lan can an toàn Family 4 tại vách giật cấp trong
+                        if (L_A > 10.0)
+                        {
+                            PlaceLocal(sym4, wPrev, 0.0, zH3, 0.0, "l", L_A);
+                            PlaceLocal(sym4, wPrev, 0.0, zH6, 0.0, "l", L_A);
+                            PlaceLocal(sym4, wPrev, 0.0, zH7, 0.0, "l", L_A);
                         }
 
+                        // 3. Giằng đỡ mâm tại zDeck
+                        PlaceLocal(sym4, 0.0, 0.0, zDeck, -90.0, "l", W);
+                        PlaceLocal(sym4, L_first, 0.0, zDeck, -90.0, "l", W);
+
+                        // 4. Mâm sàn thao tác Family 6
                         PlaceLocalPlank(0.0, -pOff, zDeck, 0.0, L_first, pw);
                         PlaceLocalPlank(0.0, -W + pOff, zDeck, 0.0, L_first, pw);
 
-                        PlaceLocal(sym7, 66.0, -W, zDeck, 90.0, "l", W);
-                        PlaceLocal(sym7, 0.0, tbOuterLy, zDeck, 0.0, "l", L_first);
+                        // 5. Ván chắn biên Family 7
+                        PlaceLocal(sym7, 66.0, 0.0, zDeck, -90.0, "l", W);
+                        PlaceLocal(sym7, 0.0, -W + 66.0, zDeck, 0.0, "l", L_first);
                         if (L_A > 10.0)
                         {
-                            PlaceLocal(sym7, wPrev, tbInnerLy, zDeck, 0.0, "l", L_A);
+                            PlaceLocal(sym7, wPrev, -66.0, zDeck, 0.0, "l", L_A);
+                        }
+                    }
+
+                    startBayIdx = 1;
+                    curLx = L_first;
+                }
+                else if (prevConn == "TH 2.2")
+                {
+                    // Nhịp đầu tiên (bay 0) của hàng hiện tại là nhịp góc vươn ngoài TH 2.2 (Mép trước phẳng)
+                    // Chuẩn hóa 100% đồng bộ với ExecuteCase2_2:
+                    // - Vách ngoài mép trước phẳng (ly = 0): dùng lan can an toàn Family 4
+                    // - Vách giật cấp trong (ly = -W, nếu L_A > 10): dùng giằng chéo Family 5 (không giằng dọc chỗ giằng chéo)
+                    double L_first = curBays[0];
+                    double L_A = (L_first - wPrev > 10.0) ? (L_first - wPrev) : 0.0;
+
+                    EnsureLocalCol(0.0, -W); EnsureLocalCol(0.0, 0.0);
+                    EnsureLocalCol(L_first, -W); EnsureLocalCol(L_first, 0.0);
+                    if (L_A > 10.0) EnsureLocalCol(wPrev, -W);
+
+                    PlaceLocalTransomAt(0.0, 0.0, -90.0, W);
+                    PlaceLocalTransom(L_first);
+                    PlaceLocalBaseboard(0.0, 0.0, -90.0, W);
+
+                    PlaceLocalBaseboard(0.0, 0.0, 0.0, L_first);
+                    PlaceLocal(sym4, 0.0, 0.0, zH1, 0.0, "l", L_first);
+
+                    if (L_A > 10.0)
+                    {
+                        PlaceLocalBaseboard(wPrev, -W, 0.0, L_A);
+                        PlaceLocal(sym4, wPrev, -W, zH1, 0.0, "l", L_A);
+                    }
+
+                    if (opts != null && opts.HasTopTransom)
+                    {
+                        PlaceLocal(sym4, 0.0, 0.0, topZ, -90.0, "l", W);
+                        PlaceLocal(sym4, L_first, 0.0, topZ, -90.0, "l", W);
+                        PlaceLocal(sym4, 0.0, 0.0, topZ, 0.0, "l", L_first);
+                        if (L_A > 10.0)
+                        {
+                            PlaceLocal(sym4, wPrev, -W, topZ, 0.0, "l", L_A);
+                        }
+                    }
+
+                    for (int s = 0; s < storyCount; s++)
+                    {
+                        double sOff = s * 1800.0;
+                        double zH3 = z0 + jackH + 830.0 + sOff;
+                        double zDeck = z0 + jackH + 1730.0 + sOff;
+                        double zH6 = z0 + jackH + 2180.0 + sOff;
+                        double zH7 = z0 + jackH + 2630.0 + sOff;
+
+                        // Lan can đầu hồi đối diện lối vào
+                        PlaceLocal(sym4, 0.0, 0.0, zH3, -90.0, "l", W);
+                        PlaceLocal(sym4, 0.0, 0.0, zH6, -90.0, "l", W);
+                        PlaceLocal(sym4, 0.0, 0.0, zH7, -90.0, "l", W);
+
+                        // Lan can vách ngoài mép trước phẳng (ly = 0)
+                        PlaceLocal(sym4, 0.0, 0.0, zH3, 0.0, "l", L_first);
+                        PlaceLocal(sym4, 0.0, 0.0, zH6, 0.0, "l", L_first);
+                        PlaceLocal(sym4, 0.0, 0.0, zH7, 0.0, "l", L_first);
+
+                        // Giằng chéo Family 5 tại vách trong giật cấp (không giằng dọc chỗ giằng chéo)
+                        if (L_A > 10.0)
+                        {
+                            PlaceLocalBraces(wPrev, -W, 0.0, L_A, s);
+                        }
+
+                        // Giằng đỡ mâm tại zDeck
+                        PlaceLocal(sym4, 0.0, 0.0, zDeck, -90.0, "l", W);
+                        PlaceLocal(sym4, L_first, 0.0, zDeck, -90.0, "l", W);
+
+                        // Mâm sàn thao tác Family 6
+                        PlaceLocalPlank(0.0, -pOff, zDeck, 0.0, L_first, pw);
+                        PlaceLocalPlank(0.0, -W + pOff, zDeck, 0.0, L_first, pw);
+
+                        // Ván chắn biên Family 7
+                        PlaceLocal(sym7, 66.0, 0.0, zDeck, -90.0, "l", W);
+                        PlaceLocal(sym7, 0.0, -66.0, zDeck, 0.0, "l", L_first);
+                        if (L_A > 10.0)
+                        {
+                            PlaceLocal(sym7, wPrev, -W + 66.0, zDeck, 0.0, "l", L_A);
                         }
                     }
 
