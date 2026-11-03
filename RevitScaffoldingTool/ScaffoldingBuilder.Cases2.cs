@@ -40,7 +40,7 @@ namespace RevitScaffoldingTool
             if (sym6 != null) ActivateSymbol(doc, sym6);
             if (sym7 != null) ActivateSymbol(doc, sym7);
 
-            List<double> mainBays = new List<double> { 1800, 1200, 1800, 1200, 1800 };
+            List<double> mainBays = new List<double> { 1800 };
             int nMainBays = mainBays.Count;
             List<double> colX = new List<double> { x0 };
             double curX = x0;
@@ -59,8 +59,8 @@ namespace RevitScaffoldingTool
             // =========================================================================
             // PHẦN B: DỰNG NHÁNH RẼ NGOÀI TRƯỜNG HỢP 2.1 (MÉP SAU PHẲNG)
             // =========================================================================
-            double xA = x0 + 7800;
-            double xB = x0 + 9000;
+            double xA = x0 + 1800;
+            double xB = x0 + 3000;
             double yBack = y0 - W; // -1200 mm
             double yFront = y0;     // 0 mm
             double yTop = y0 + 600; // +600 mm
@@ -217,7 +217,7 @@ namespace RevitScaffoldingTool
             if (sym6 != null) ActivateSymbol(doc, sym6);
             if (sym7 != null) ActivateSymbol(doc, sym7);
 
-            List<double> mainBays = new List<double> { 1800, 1200, 1800, 1200, 1800 };
+            List<double> mainBays = new List<double> { 1800 };
             int nMainBays = mainBays.Count;
             List<double> colX = new List<double> { x0 };
             double curX = x0;
@@ -236,8 +236,8 @@ namespace RevitScaffoldingTool
             // =========================================================================
             // PHẦN B: DỰNG NHÁNH RẼ NGOÀI TRƯỜNG HỢP 2.2 (MÉP TRƯỚC PHẲNG - HƯỚNG -Y)
             // =========================================================================
-            double xA = x0 + 7800;
-            double xB = x0 + 9000;
+            double xA = x0 + 1800;
+            double xB = x0 + 3000;
             double yFront = y0;       // 0 mm
             double yBack  = y0 - W;   // -1200 mm
             double yBot   = y0 - 1800;// -1800 mm

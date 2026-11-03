@@ -43,21 +43,13 @@ namespace RevitScaffoldingTool
             // =========================================================================
             // PHẦN A: DÃY CHÍNH 5 NHỊP (NHỊP 1->4 TIÊU CHUẨN, NHỊP 5 ĐẶC BIỆT CÓ CỘT CẤY)
             // =========================================================================
-            List<double> colX = new List<double> { x0, x0 + 1800, x0 + 3000, x0 + 4800, x0 + 6000, x0 + 7800 };
+            List<double> colX = new List<double> { x0, x0 + 1800 };
 
-            // 1. Dựng 6 hàng cột dãy chính bằng helper chuẩn hóa
+            // 1. Dựng 2 hàng cột dãy chính bằng helper chuẩn hóa (đầu hồi trái k=0 và đầu hồi phải k=1)
             BuildMainColumnGrid(doc, level, placedIds, sym2, sym3, sym4, sym7, colX, y0, z0, W, jackH, storyCount, topZ, (k, n) => (k == 0 || k == n - 1), opts);
 
-            // 2. Dựng 4 nhịp đầu tiêu chuẩn (Nhịp 1 -> 4)
-            for (int i = 0; i < 4; i++)
-            {
-                double px = colX[i];
-                double L_i = (i % 2 == 0) ? 1800 : 1200;
-                BuildStandardBayElements(doc, level, placedIds, sym1, sym4, sym5, sym6, sym7, px, y0, z0, W, jackH, L_i, true, opts);
-            }
-
-            // 3. Cấu kiện Nhịp 5 dãy chính (X: 6000 -> 7800, L = 1800 mm)
-            double xBay5 = colX[4]; // X = 6000
+            // 2. Cấu kiện Nhịp 1 dãy chính (X: x0 -> x0 + 1800, L = 1800 mm)
+            double xBay5 = x0;
             double L_bay5 = 1800;
 
             // Ván lót đáy sau Family 1 (Y = -W)
@@ -104,7 +96,7 @@ namespace RevitScaffoldingTool
             }
 
             // 4. CẤY CỘT TẠI X = 6600 (MÉP TRƯỚC Y = 0)
-            double xC = x0 + 6600;
+            double xC = x0 + 600;
             var jkC = PlaceInstance(doc, sym2, level, new XYZ(MmToFt(xC), MmToFt(y0), MmToFt(z0)), 0, "h", jackH);
             if (jkC != null) placedIds.Add(jkC.Id.IntegerValue);
 
@@ -150,7 +142,7 @@ namespace RevitScaffoldingTool
             // =========================================================================
             // PHẦN B: DỰNG NHỊP RẼ VUÔNG GÓC 90° VƯƠN SANG +Y (1800 x 1200 mm)
             // =========================================================================
-            double xMax = x0 + 7800;
+            double xMax = x0 + 1800;
             double yTop = y0 + 1800;
             double L_return = 1800;
             double W_return = 1200;
@@ -276,7 +268,7 @@ namespace RevitScaffoldingTool
             if (sym6 != null) ActivateSymbol(doc, sym6);
             if (sym7 != null) ActivateSymbol(doc, sym7);
 
-            List<double> mainBays = new List<double> { 1800, 1200, 1800, 1200 };
+            List<double> mainBays = new List<double> { 1200 };
             int nBays = mainBays.Count;
             List<double> colX = new List<double> { x0 };
             double curX = x0;
@@ -455,17 +447,10 @@ namespace RevitScaffoldingTool
             if (sym6 != null) ActivateSymbol(doc, sym6);
             if (sym7 != null) ActivateSymbol(doc, sym7);
 
-            List<double> colX = new List<double> { x0, x0 + 1800, x0 + 3000, x0 + 4800, x0 + 6000, x0 + 7800 };
+            List<double> colX = new List<double> { x0, x0 + 1800 };
             BuildMainColumnGrid(doc, level, placedIds, sym2, sym3, sym4, sym7, colX, y0, z0, W, jackH, storyCount, topZ, (k, n) => (k == 0 || k == n - 1), opts);
 
-            for (int i = 0; i < 4; i++)
-            {
-                double px = colX[i];
-                double L_i = (i % 2 == 0) ? 1800 : 1200;
-                BuildStandardBayElements(doc, level, placedIds, sym1, sym4, sym5, sym6, sym7, px, y0, z0, W, jackH, L_i, true, opts);
-            }
-
-            double xBay5 = colX[4]; // X = 6000
+            double xBay5 = x0;
             double L_bay5 = 1800;
 
             var bb5Front = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xBay5), MmToFt(y0), MmToFt(z0)), 0, "l", L_bay5);
@@ -515,7 +500,7 @@ namespace RevitScaffoldingTool
             }
 
             // CẤY CỘT TẠI X = 6600 (MÉP SAU Y = -W)
-            double xC = x0 + 6600;
+            double xC = x0 + 600;
             var jkC = PlaceInstance(doc, sym2, level, new XYZ(MmToFt(xC), MmToFt(y0 - W), MmToFt(z0)), 0, "h", jackH);
             if (jkC != null) placedIds.Add(jkC.Id.IntegerValue);
 
@@ -548,7 +533,7 @@ namespace RevitScaffoldingTool
             }
 
             // PHẦN B: HỆ GIÀN 2 (NHÁNH RẼ -Y: 1800 x 1200 mm)
-            double xMax = x0 + 7800;
+            double xMax = x0 + 1800;
             double yBase = y0 - W;
             double L_return = 1800;
             double yBot = yBase - L_return;
@@ -673,7 +658,7 @@ namespace RevitScaffoldingTool
             if (sym6 != null) ActivateSymbol(doc, sym6);
             if (sym7 != null) ActivateSymbol(doc, sym7);
 
-            List<double> mainBays = new List<double> { 1800, 1200, 1800, 1200 };
+            List<double> mainBays = new List<double> { 1200 };
             int nBays = mainBays.Count;
             List<double> colX = new List<double> { x0 };
             double curX = x0;
