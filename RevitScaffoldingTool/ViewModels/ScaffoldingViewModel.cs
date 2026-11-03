@@ -43,6 +43,11 @@ namespace RevitScaffoldingTool.ViewModels
         // Tùy chọn chạy theo dữ liệu nhập (From data) — ÁP DỤNG RIÊNG CHO NHÓM NÚT BÊN PHẢI
         [ObservableProperty] private bool _isFromData = true;
 
+        // Thông số nhịp & bề rộng riêng cho nhóm Button bên phải
+        [ObservableProperty] private double _buttonL1 = 1800.0;
+        [ObservableProperty] private double _buttonL2 = 1800.0;
+        [ObservableProperty] private double _buttonW = 1200.0;
+
         // Trạng thái thực thi
         [ObservableProperty] private string _statusMessage = "Sẵn sàng thi công giàn giáo ALINCO.";
         [ObservableProperty] private bool _isBusy = false;
@@ -69,6 +74,9 @@ namespace RevitScaffoldingTool.ViewModels
                 StoryCount = s.StoryCount > 0 ? s.StoryCount : 1;
                 HasTopTransom = s.HasTopTransom;
                 IsFromData = s.IsFromData;
+                ButtonL1 = s.ButtonL1 > 0 ? s.ButtonL1 : 1800.0;
+                ButtonL2 = s.ButtonL2 > 0 ? s.ButtonL2 : 1800.0;
+                ButtonW = s.ButtonW > 0 ? s.ButtonW : 1200.0;
             }
             catch
             {
@@ -92,6 +100,9 @@ namespace RevitScaffoldingTool.ViewModels
                 s.StoryCount = StoryCount;
                 s.HasTopTransom = HasTopTransom;
                 s.IsFromData = IsFromData;
+                s.ButtonL1 = ButtonL1;
+                s.ButtonL2 = ButtonL2;
+                s.ButtonW = ButtonW;
                 s.Save();
             }
             catch
@@ -106,6 +117,10 @@ namespace RevitScaffoldingTool.ViewModels
         {
             SaveSettings();
 
+            double l1 = ButtonL1 > 0 ? ButtonL1 : 1800.0;
+            double l2 = ButtonL2 > 0 ? ButtonL2 : 1800.0;
+            double w = ButtonW > 0 ? ButtonW : 1200.0;
+
             if (!IsFromData)
             {
                 // Chế độ Default (chạy theo thông số mặc định của từng trường hợp)
@@ -114,9 +129,11 @@ namespace RevitScaffoldingTool.ViewModels
                     X0 = 0.0,
                     Y0 = 0.0,
                     Z0 = 0.0,
-                    BayWidth = 1200.0,
+                    BayWidth = w,
+                    L1 = l1,
+                    L2 = l2,
                     JackHeight = 250.0,
-                    BayLengths = new List<double> { 1800, 1200, 1800, 1200, 1800 },
+                    BayLengths = new List<double> { l1 },
                     FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
                     Mode = mode,
                     IsFromData = false,
@@ -138,9 +155,11 @@ namespace RevitScaffoldingTool.ViewModels
                     X0 = 0.0,
                     Y0 = 0.0,
                     Z0 = ElevationZ,
-                    BayWidth = BayWidth > 0 ? BayWidth : 1200.0,
+                    BayWidth = w,
+                    L1 = l1,
+                    L2 = l2,
                     JackHeight = JackHeight,
-                    BayLengths = new List<double> { 1800, 1200, 1800, 1200, 1800 },
+                    BayLengths = new List<double> { l1 },
                     FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
                     Mode = mode,
                     IsFromData = true,

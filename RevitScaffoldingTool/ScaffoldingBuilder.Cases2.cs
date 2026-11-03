@@ -15,6 +15,8 @@ namespace RevitScaffoldingTool
             double y0 = opts.Y0;
             double z0 = opts.Z0;
             double W = opts.BayWidth > 0 ? opts.BayWidth : 1200.0;
+            double L1 = opts.L1 > 0 ? opts.L1 : 1800.0;
+            double L2 = opts.L2 > 0 ? opts.L2 : 1800.0;
             double jackH = GetJackHeight(opts);
             int storyCount = (opts != null && opts.StoryCount > 0) ? opts.StoryCount : 1;
             double topZ = GetTopZ(z0, jackH, storyCount, opts);
@@ -40,7 +42,7 @@ namespace RevitScaffoldingTool
             if (sym6 != null) ActivateSymbol(doc, sym6);
             if (sym7 != null) ActivateSymbol(doc, sym7);
 
-            List<double> mainBays = new List<double> { 1800 };
+            List<double> mainBays = new List<double> { L1 };
             int nMainBays = mainBays.Count;
             List<double> colX = new List<double> { x0 };
             double curX = x0;
@@ -57,15 +59,16 @@ namespace RevitScaffoldingTool
             }
 
             // =========================================================================
-            // PHẦN B: DỰNG NHÁNH RẼ NGOÀI TRƯỜNG HỢP 2.1 (MÉP SAU PHẲNG)
+            // PHẦN B: DỰNG NHÁNH RẼ NGOÀI TRƯỜNG HỢP 2.1 (MÉP SAU PHẲNG: L2 x W mm)
             // =========================================================================
-            double xA = x0 + 1800;
-            double xB = x0 + 3000;
-            double yBack = y0 - W; // -1200 mm
-            double yFront = y0;     // 0 mm
-            double yTop = y0 + 600; // +600 mm
-            double L_ret = 1800;    // Dài theo phương Y (từ -1200 đến +600)
-            double W_ret = 1200;    // Rộng theo phương X (từ 7800 đến 9000)
+            double xA = x0 + L1;
+            double xB = xA + W;
+            double yBack = y0 - W;
+            double yFront = y0;
+            double yTop = yBack + L2;
+            double L_ret = L2;
+            double W_ret = W;
+            double L_A = Math.Max(0, yTop - yFront);
 
             var bbR1 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xA), MmToFt(yBack), MmToFt(z0)), 0, "l", W_ret);
             var bbR2 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xA), MmToFt(yTop),  MmToFt(z0)), 0, "l", W_ret);
@@ -92,7 +95,7 @@ namespace RevitScaffoldingTool
             var trRF_Back = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBack), MmToFt(zH1_R)), 0, "l", W_ret);
             var trRF_Top  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yTop),  MmToFt(zH1_R)), 0, "l", W_ret);
             var lgRF_B    = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBack), MmToFt(zH1_R)), 90, "l", L_ret);
-            var lgRF_A    = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH1_R)), 90, "l", 600);
+            var lgRF_A    = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH1_R)), 90, "l", L_A);
             if (trRF_Back != null) placedIds.Add(trRF_Back.Id.IntegerValue);
             if (trRF_Top  != null) placedIds.Add(trRF_Top.Id.IntegerValue);
             if (lgRF_B    != null) placedIds.Add(lgRF_B.Id.IntegerValue);
@@ -103,7 +106,7 @@ namespace RevitScaffoldingTool
                 var trTopRF_Back = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBack), MmToFt(topZ)), 0, "l", W_ret);
                 var trTopRF_Top  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yTop),  MmToFt(topZ)), 0, "l", W_ret);
                 var lgTopRF_B    = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBack), MmToFt(topZ)), 90, "l", L_ret);
-                var lgTopRF_A    = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(topZ)), 90, "l", 600);
+                var lgTopRF_A    = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(topZ)), 90, "l", L_A);
                 if (trTopRF_Back != null) placedIds.Add(trTopRF_Back.Id.IntegerValue);
                 if (trTopRF_Top  != null) placedIds.Add(trTopRF_Top.Id.IntegerValue);
                 if (lgTopRF_B    != null) placedIds.Add(lgTopRF_B.Id.IntegerValue);
@@ -159,7 +162,7 @@ namespace RevitScaffoldingTool
                     if (tbEndB != null) placedIds.Add(tbEndB.Id.IntegerValue);
 
                     // - Vách trong giật cấp X = 7800 (Y: 0 -> +600, L = 600)
-                    var tbInnerA = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA + 66), MmToFt(yFront), MmToFt(zDeck_R)), 90, "l", 600);
+                    var tbInnerA = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA + 66), MmToFt(yFront), MmToFt(zDeck_R)), 90, "l", L_A);
                     if (tbInnerA != null) placedIds.Add(tbInnerA.Id.IntegerValue);
                 }
 
@@ -174,8 +177,8 @@ namespace RevitScaffoldingTool
                 if (rTop2 != null) placedIds.Add(rTop2.Id.IntegerValue);
 
                 // - Giằng dọc trong: Vách trong giật cấp X = 7800 (Y: 0 -> +600, L = 600) có đầy đủ lan can kép h6 và h7
-                var rA_1  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH6_R)), 90, "l", 600);
-                var rA_2  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH7_R)), 90, "l", 600);
+                var rA_1  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH6_R)), 90, "l", L_A);
+                var rA_2  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH7_R)), 90, "l", L_A);
                 if (rA_1 != null) placedIds.Add(rA_1.Id.IntegerValue);
                 if (rA_2 != null) placedIds.Add(rA_2.Id.IntegerValue);
             }
@@ -192,6 +195,8 @@ namespace RevitScaffoldingTool
             double y0 = opts.Y0;
             double z0 = opts.Z0;
             double W = opts.BayWidth > 0 ? opts.BayWidth : 1200.0;
+            double L1 = opts.L1 > 0 ? opts.L1 : 1800.0;
+            double L2 = opts.L2 > 0 ? opts.L2 : 1800.0;
             double jackH = GetJackHeight(opts);
             int storyCount = (opts != null && opts.StoryCount > 0) ? opts.StoryCount : 1;
             double topZ = GetTopZ(z0, jackH, storyCount, opts);
@@ -217,7 +222,7 @@ namespace RevitScaffoldingTool
             if (sym6 != null) ActivateSymbol(doc, sym6);
             if (sym7 != null) ActivateSymbol(doc, sym7);
 
-            List<double> mainBays = new List<double> { 1800 };
+            List<double> mainBays = new List<double> { L1 };
             int nMainBays = mainBays.Count;
             List<double> colX = new List<double> { x0 };
             double curX = x0;
@@ -234,15 +239,16 @@ namespace RevitScaffoldingTool
             }
 
             // =========================================================================
-            // PHẦN B: DỰNG NHÁNH RẼ NGOÀI TRƯỜNG HỢP 2.2 (MÉP TRƯỚC PHẲNG - HƯỚNG -Y)
+            // PHẦN B: DỰNG NHÁNH RẼ NGOÀI TRƯỜNG HỢP 2.2 (MÉP TRƯỚC PHẲNG: L2 x W mm)
             // =========================================================================
-            double xA = x0 + 1800;
-            double xB = x0 + 3000;
-            double yFront = y0;       // 0 mm
-            double yBack  = y0 - W;   // -1200 mm
-            double yBot   = y0 - 1800;// -1800 mm
-            double L_ret  = 1800;     // Dài theo phương Y (từ -1800 đến 0)
-            double W_ret  = 1200;     // Rộng theo phương X (từ 7800 đến 9000)
+            double xA = x0 + L1;
+            double xB = xA + W;
+            double yFront = y0;
+            double yBack  = y0 - W;
+            double yBot   = yFront - L2;
+            double L_ret  = L2;
+            double W_ret  = W;
+            double L_A = Math.Max(0, yBack - yBot);
 
             var bbR1 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(z0)), 0, "l", W_ret);
             var bbR2 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(z0)), 0, "l", W_ret);
@@ -269,7 +275,7 @@ namespace RevitScaffoldingTool
             var trRF_Front = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH1_R)), 0, "l", W_ret);
             var trRF_Bot   = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(zH1_R)), 0, "l", W_ret);
             var lgRF_B     = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBot),   MmToFt(zH1_R)), 90, "l", L_ret);
-            var lgRF_A     = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(zH1_R)), 90, "l", 600);
+            var lgRF_A     = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(zH1_R)), 90, "l", L_A);
             if (trRF_Front != null) placedIds.Add(trRF_Front.Id.IntegerValue);
             if (trRF_Bot   != null) placedIds.Add(trRF_Bot.Id.IntegerValue);
             if (lgRF_B     != null) placedIds.Add(lgRF_B.Id.IntegerValue);
@@ -280,7 +286,7 @@ namespace RevitScaffoldingTool
                 var trTopRF_Front = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(topZ)), 0, "l", W_ret);
                 var trTopRF_Bot   = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(topZ)), 0, "l", W_ret);
                 var lgTopRF_B     = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBot),   MmToFt(topZ)), 90, "l", L_ret);
-                var lgTopRF_A     = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(topZ)), 90, "l", 600);
+                var lgTopRF_A     = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(topZ)), 90, "l", L_A);
                 if (trTopRF_Front != null) placedIds.Add(trTopRF_Front.Id.IntegerValue);
                 if (trTopRF_Bot   != null) placedIds.Add(trTopRF_Bot.Id.IntegerValue);
                 if (lgTopRF_B     != null) placedIds.Add(lgTopRF_B.Id.IntegerValue);
@@ -306,7 +312,7 @@ namespace RevitScaffoldingTool
                 if (lgRM_EndB != null) placedIds.Add(lgRM_EndB.Id.IntegerValue);
 
                 // 2. Giằng chéo trong Family 5: Đặt tại vách trong giật cấp X = 7800 (Y: -1800 -> -1200, L = 600)
-                PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xA, yBot, 90, 600, z0, jackH, s, storyCount, opts);
+                PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xA, yBot, 90, L_A, z0, jackH, s, storyCount, opts);
 
                 // 3. Giằng đỡ mâm tại zDeck:
                 double zDeck_R = z0 + jackH + 1730 + sOff;
@@ -341,7 +347,7 @@ namespace RevitScaffoldingTool
                     if (tbEndB != null) placedIds.Add(tbEndB.Id.IntegerValue);
 
                     // - Vách trong giật cấp X = 7800 (Y: -1800 -> -1200, L = 600)
-                    var tbInnerA = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA + 66), MmToFt(yBot), MmToFt(zDeck_R)), 90, "l", 600);
+                    var tbInnerA = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA + 66), MmToFt(yBot), MmToFt(zDeck_R)), 90, "l", L_A);
                     if (tbInnerA != null) placedIds.Add(tbInnerA.Id.IntegerValue);
                 }
 
@@ -368,7 +374,7 @@ namespace RevitScaffoldingTool
                 if (rEnd2 != null) placedIds.Add(rEnd2.Id.IntegerValue);
 
                 // - Vách trong giật cấp X = 7800 (Y: -1800 -> -1200, L = 600): Có tay vịn trên h7 phía trên giằng chéo trong
-                var rA_2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH7_R)), 90, "l", 600);
+                var rA_2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH7_R)), 90, "l", L_A);
                 if (rA_2 != null) placedIds.Add(rA_2.Id.IntegerValue);
             }
 

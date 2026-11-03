@@ -95,5 +95,29 @@ namespace RevitScaffoldingTool.Properties
             get => (bool)this[nameof(IsFromData)];
             set => this[nameof(IsFromData)] = value;
         }
+
+        [UserScopedSetting]
+        [DefaultSettingValue("1800")]
+        public double ButtonL1
+        {
+            get => (double)this[nameof(ButtonL1)];
+            set => this[nameof(ButtonL1)] = value;
+        }
+
+        [UserScopedSetting]
+        [DefaultSettingValue("1800")]
+        public double ButtonL2
+        {
+            get => (double)this[nameof(ButtonL2)];
+            set => this[nameof(ButtonL2)] = value;
+        }
+
+        [UserScopedSetting]
+        [DefaultSettingValue("1200")]
+        public double ButtonW
+        {
+            get => (double)this[nameof(ButtonW)];
+            set => this[nameof(ButtonW)] = value;
+        }
     }
 }

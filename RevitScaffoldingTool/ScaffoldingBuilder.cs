@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,6 +15,8 @@ namespace RevitScaffoldingTool
         public double BayWidth { get; set; }
         public double JackHeight { get; set; }
         public List<double> BayLengths { get; set; }
+        public double L1 { get; set; }
+        public double L2 { get; set; }
         public int Mode { get; set; }
         public string FamilyFolder { get; set; }
 
@@ -36,6 +38,8 @@ namespace RevitScaffoldingTool
             BayWidth = 1200;
             JackHeight = 250;
             BayLengths = new List<double> { 1800, 1200, 1800, 1200, 1800 };
+            L1 = 1800;
+            L2 = 1800;
             Mode = -1;
             FamilyFolder = @"H:\My Drive\Family\New folder\Child";
             Post1Height = 0;
