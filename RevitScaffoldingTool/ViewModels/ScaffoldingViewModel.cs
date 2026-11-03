@@ -20,7 +20,7 @@ namespace RevitScaffoldingTool.ViewModels
         // Bảng hệ giàn (DataGrid - Cột Trái)
         public ObservableCollection<BayRowModel> BayRows { get; } = new ObservableCollection<BayRowModel>();
         [ObservableProperty] private BayRowModel _selectedBayRow;
-        public List<string> ConnectCases { get; } = new List<string> { "TH 1.1", "TH 1.2", "TH 1.3", "TH 1.4", "TH 2.1", "TH 2.2" };
+        public List<string> ConnectCases { get; } = new List<string> { "TH 0", "TH 1.1", "TH 1.2", "TH 1.3", "TH 1.4", "TH 2.1", "TH 2.2" };
 
         // Vị trí, Chân chống & Cao độ Z (Cột Giữa - Data)
         [ObservableProperty] private double _elevationZ = 0.0;
@@ -70,6 +70,28 @@ namespace RevitScaffoldingTool.ViewModels
         {
             _uiApp = uiApp;
             LoadSettings();
+            InitDefaultTableRows();
+        }
+
+        private void InitDefaultTableRows()
+        {
+            BayRows.Clear();
+            string[] defaultBays = new string[] { ButtonL0, ButtonL1, ButtonL2, ButtonL3, ButtonL4, ButtonL5, ButtonL6 };
+            string[] defaultConnects = new string[] { "TH 1.1", "TH 1.2", "TH 1.3", "TH 1.4", "TH 2.1", "TH 2.2", "TH 0" };
+            for (int i = 0; i < defaultBays.Length; i++)
+            {
+                string expr = !string.IsNullOrWhiteSpace(defaultBays[i]) ? defaultBays[i] : "1800";
+                BayRows.Add(new BayRowModel
+                {
+                    Stt = i + 1,
+                    ElementId = "L" + i,
+                    BayList = expr,
+                    ConnectCase = defaultConnects[i],
+                    Width = ButtonW > 0 ? ButtonW : 1200.0,
+                    BayLengths = ScaffoldingBuilder.ParseBayLengths(expr, 1800.0)
+                });
+            }
+            if (BayRows.Count > 0) SelectedBayRow = BayRows[0];
         }
 
         public void LoadSettings()
@@ -370,6 +392,31 @@ namespace RevitScaffoldingTool.ViewModels
                         });
                     }
 
+                    // Hàng cuối: nếu có nối kín về hàng 1 (khoảng cách End hàng cuối tới Start hàng 1 <= 2500 mm và >= 3 hàng) thì giữ Connect, còn không thì đặt "TH 0" (bỏ qua connect)
+                    if (resultRows.Count > 0)
+                    {
+                        var lastRow = resultRows[resultRows.Count - 1];
+                        bool connectsToFirst = false;
+                        if (resultRows.Count >= 3)
+                        {
+                            var firstRow = resultRows[0];
+                            bool hasCoords = (Math.Abs(firstRow.StartX) > 0.1 || Math.Abs(firstRow.StartY) > 0.1 || Math.Abs(lastRow.EndX) > 0.1 || Math.Abs(lastRow.EndY) > 0.1);
+                            if (hasCoords)
+                            {
+                                double dist = Math.Sqrt(Math.Pow(lastRow.EndX - firstRow.StartX, 2) + Math.Pow(lastRow.EndY - firstRow.StartY, 2));
+                                if (dist <= 2500.0)
+                                {
+                                    connectsToFirst = true;
+                                }
+                            }
+                        }
+
+                        if (!connectsToFirst)
+                        {
+                            lastRow.ConnectCase = "TH 0";
+                        }
+                    }
+
                     return resultRows;
                 });
 
@@ -389,7 +436,7 @@ namespace RevitScaffoldingTool.ViewModels
                     if (BayRows.Count > 4) ButtonL4 = BayRows[4].BayList;
                     if (BayRows.Count > 5) ButtonL5 = BayRows[5].BayList;
                     if (BayRows.Count > 6) ButtonL6 = BayRows[6].BayList;
-                    StatusMessage = string.Format("Đã quét thành công {0} hệ giàn từ Revit và đồng bộ vào L0..L6.", BayRows.Count);
+                    StatusMessage = string.Format("Đã quét thành công {0} hệ giàn từ Revit (Row cuối Connect = {1}).", BayRows.Count, BayRows[BayRows.Count - 1].ConnectCase);
                 }
                 else
                 {
@@ -406,11 +453,82 @@ namespace RevitScaffoldingTool.ViewModels
             }
         }
 
-        [RelayCommand]
-        private Task RunBaysAsync()
+        private BuildOptions CreateOptionsForTableRun()
         {
-            // Đã xóa code Button Run cũ; chuyển sang gọi Master Continue theo L0..L6 và 6 CheckBox
-            return BuildMasterAsync();
+            SaveSettings();
+
+            double w = ButtonW > 0 ? ButtonW : 1200.0;
+            var tableRows = new List<TableRowOption>();
+            foreach (var r in BayRows)
+            {
+                if (r == null) continue;
+                var bays = ScaffoldingBuilder.ParseBayLengths(r.BayList, 1800.0);
+                tableRows.Add(new TableRowOption
+                {
+                    BayLengths = bays,
+                    ConnectCase = string.IsNullOrWhiteSpace(r.ConnectCase) ? "TH 0" : r.ConnectCase,
+                    Width = r.Width > 0 ? r.Width : w
+                });
+            }
+
+            return new BuildOptions
+            {
+                X0 = 0.0,
+                Y0 = 0.0,
+                Z0 = ElevationZ,
+                BayWidth = w,
+                TableRows = tableRows,
+                JackHeight = JackHeight > 0 ? JackHeight : 250.0,
+                FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
+                Mode = -9,
+                IsFromData = true,
+                Post1Height = Post1Height,
+                Post2Height = Post2Height,
+                Post3Count = Post3Count,
+                Post3Height = Post3Height,
+                Post4Height = Post4Height,
+                Post5Height = Post5Height,
+                StoryCount = StoryCount > 0 ? StoryCount : 1,
+                HasTopTransom = HasTopTransom
+            };
+        }
+
+        [RelayCommand]
+        private async Task RunBaysAsync()
+        {
+            if (IsBusy) return;
+            if (BayRows.Count == 0)
+            {
+                StatusMessage = "Bảng hệ giàn trống! Vui lòng bấm Quét (Select) hoặc nhập dòng vào bảng trước.";
+                return;
+            }
+
+            IsBusy = true;
+            StatusMessage = string.Format("Đang chạy Button Run theo Bảng Table ({0} hàng)...", BayRows.Count);
+
+            try
+            {
+                BuildOptions opts = CreateOptionsForTableRun();
+                BuildResult res = await RevitTask.RunAsync(app =>
+                {
+                    Document doc = app.ActiveUIDocument != null ? app.ActiveUIDocument.Document : null;
+                    if (doc == null)
+                    {
+                        return new BuildResult { Success = false, Message = "Không tìm thấy Document Revit đang mở." };
+                    }
+                    return ScaffoldingBuilder.ExecuteBuild(doc, opts);
+                });
+
+                StatusMessage = string.Format("[Table Run] — {0}", res.Message);
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = "Lỗi thi công Table Run: " + ex.Message;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
         }
 
         [RelayCommand]

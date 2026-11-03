@@ -8,6 +8,13 @@ using Autodesk.Revit.DB.Structure;
 
 namespace RevitScaffoldingTool
 {
+    public class TableRowOption
+    {
+        public List<double> BayLengths { get; set; } = new List<double>();
+        public string ConnectCase { get; set; } = "TH 0";
+        public double Width { get; set; } = 1200.0;
+    }
+
     public class BuildOptions
     {
         public double X0 { get; set; }
@@ -25,6 +32,7 @@ namespace RevitScaffoldingTool
         public List<double> L4Bays { get; set; }
         public List<double> L5Bays { get; set; }
         public List<double> L6Bays { get; set; }
+        public List<TableRowOption> TableRows { get; set; }
         public bool CheckCase11 { get; set; }
         public bool CheckCase12 { get; set; }
         public bool CheckCase13 { get; set; }
@@ -61,6 +69,7 @@ namespace RevitScaffoldingTool
             L4Bays = new List<double> { 1800, 1800 };
             L5Bays = new List<double> { 1800, 1800, 1800 };
             L6Bays = new List<double> { 1800, 1800, 1800 };
+            TableRows = new List<TableRowOption>();
             CheckCase11 = true;
             CheckCase12 = true;
             CheckCase13 = true;
@@ -196,7 +205,8 @@ namespace RevitScaffoldingTool
 
             if (opts == null) opts = new BuildOptions();
 
-            string txName = opts.Mode == -8 ? "Dung Gian Giao - Master 6 Corners Lien Tuc" :
+            string txName = opts.Mode == -9 ? "Dung Gian Giao - Button Run Theo Table" :
+                            opts.Mode == -8 ? "Dung Gian Giao - Master 6 Corners Lien Tuc" :
                             opts.Mode == -2 ? "Dung Gian Giao - Truong Hop 1.1 (+Y Mep Ngoai)" :
                             opts.Mode == -4 ? "Dung Gian Giao - Truong Hop 1.2 (+X Thu 1200)" :
                             opts.Mode == -5 ? "Dung Gian Giao - Truong Hop 1.3 (-Y Giangg Thu Ngan)" :
@@ -223,7 +233,12 @@ namespace RevitScaffoldingTool
 
                     List<int> placedIds = new List<int>();
 
-                    if (opts.Mode == -8)
+                    if (opts.Mode == -9)
+                    {
+                        string err = ExecuteTableRunContinuous(doc, opts, defaultLevel, placedIds);
+                        if (!string.IsNullOrEmpty(err)) { tx.RollBack(); res.Message = "Lỗi Button Run (Table): " + err; return res; }
+                    }
+                    else if (opts.Mode == -8)
                     {
                         string err = ExecuteMaster6CornersContinuous(doc, opts, defaultLevel, placedIds);
                         if (!string.IsNullOrEmpty(err)) { tx.RollBack(); res.Message = "Lỗi Master 6 Corners: " + err; return res; }
@@ -271,7 +286,8 @@ namespace RevitScaffoldingTool
                     res.TotalElements = placedIds.Count;
                     res.ElapsedMs = sw.Elapsed.TotalMilliseconds;
 
-                    string title = opts.Mode == -8 ? "MASTER 6 CORNERS" :
+                    string title = opts.Mode == -9 ? "BUTTON RUN (THEO BẢNG TABLE)" :
+                                   opts.Mode == -8 ? "MASTER 6 CORNERS" :
                                    opts.Mode == -2 ? "Trường Hợp 1.1 (+Y Mép Ngoài Phẳng)" :
                                    opts.Mode == -4 ? "Trường Hợp 1.2 (+X Thu 1200x1200)" :
                                    opts.Mode == -5 ? "Trường Hợp 1.3 (-Y Giằng Chéo Thu Ngắn 600)" :

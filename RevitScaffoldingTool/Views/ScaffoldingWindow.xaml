@@ -170,19 +170,30 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <!-- NÚT QUÉT SELECT (ĐỒNG BỘ TRỰC TIẾP SANG L0..L6) -->
-                    <Button Grid.Row="0" Content="🎯 Quét (Select) &amp; Đồng Bộ L0 → L6"
-                            Command="{Binding SelectInstancesCommand}"
-                            Height="34" Background="#0284C7" Margin="0,0,0,8"
-                            ToolTip="Quét các instance Review_DetailLine trong View và tự động điền chuỗi nhịp vào L0..L6"/>
+                    <!-- 2 NÚT ĐẦU CỘT TRÁI: QUÉT (SELECT) & CHẠY (RUN THEO TABLE) -->
+                    <Grid Grid.Row="0" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="🎯 Quét (Select)"
+                                Command="{Binding SelectInstancesCommand}"
+                                Height="34" Background="#0284C7"
+                                ToolTip="Quét các instance Review_DetailLine trong View đưa vào Table và đồng bộ sang L0..L6"/>
+                        <Button Grid.Column="2" Content="▶ Chạy (Run)"
+                                Command="{Binding RunBaysCommand}"
+                                Height="34" Background="#059669"
+                                ToolTip="Chạy theo Table: Row 1 như L0, Row 2 như L1,... Cột Connect chọn hàm TH để chạy nối tiếp; Row cuối nếu không nối về Row 1 thì Connect = TH 0"/>
+                    </Grid>
 
                     <!-- DATAGRID: DANH SÁCH HỆ GIÀN (DARK THEME) -->
                     <DataGrid Grid.Row="1"
                               ItemsSource="{Binding BayRows}"
                               SelectedItem="{Binding SelectedBayRow, Mode=TwoWay}"
                               AutoGenerateColumns="False"
-                              CanUserAddRows="False"
-                              CanUserDeleteRows="False"
+                              CanUserAddRows="True"
+                              CanUserDeleteRows="True"
                               HeadersVisibility="Column"
                               GridLinesVisibility="All"
                               HorizontalGridLinesBrush="#334155"
