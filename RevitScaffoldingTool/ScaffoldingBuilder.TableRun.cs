@@ -138,706 +138,38 @@ namespace RevitScaffoldingTool
             isClosedLoop = (nRows >= 3 && dEndToStart <= 3500.0) || (!string.IsNullOrEmpty(rLast.ConnectCase) && rLast.ConnectCase != "None" && nRows >= 2);
 
             // THI CÔNG TOÀN BỘ CÁC ROW VÀ GÓC NỐI TRONG BẢNG TABLE (100% TỰ CUSTOM CHIỀU DÀI):
-            // Với mỗi hàng i nối sang hàng i + 1:
-            // Lấy nhịp cuối của row[i] và nhịp đầu của row[i+1], áp dụng trường hợp connect tương tự như 6 button chuẩn hóa!
             for (int i = 0; i < nRows; i++)
             {
                 var rowCur = rows[i];
                 var rowNext = (i < nRows - 1) ? rows[i + 1] : (isClosedLoop ? rows[0] : null);
                 bool hasNext = (rowNext != null) && (!string.IsNullOrEmpty(rowCur.ConnectCase) && rowCur.ConnectCase != "None");
                 bool isFirstRow = (i == 0);
+                bool hasSoloConnect = (nRows == 1 && !string.IsNullOrEmpty(rowCur.ConnectCase) && rowCur.ConnectCase != "None");
 
-                // 1. Dựng các nhịp thẳng tiêu chuẩn của rowCur (nếu có các nhịp giữa nBays > 1)
-                // - Hàng đầu tiên (i == 0): bắt đầu từ nhịp 0.
-                // - Hàng từ thứ 2 trở đi (i > 0): nhịp 0 đã được góc nối trước dựng, nên bắt đầu từ nhịp 1!
+                // 1. Dựng các nhịp thẳng tiêu chuẩn của rowCur
                 int startBay = isFirstRow ? 0 : 1;
                 BuildTableStraightRun(doc, rowCur, opts, level, placedIds, ensureCol, placeTransom,
                     sym1, sym4, sym5, sym6, sym7,
                     openStart: !isFirstRow || isClosedLoop,
-                    hasCornerConnect: hasNext,
+                    hasCornerConnect: hasNext || hasSoloConnect,
                     startBayIndex: startBay);
 
                 // 2. Góc nối giữa nhịp cuối rowCur và nhịp đầu rowNext:
-                // Áp dụng đúng trường hợp connect tương tự như code vừa đổi phía trên với kích thước custom 100%!
                 if (hasNext)
                 {
                     string cCase = !string.IsNullOrEmpty(rowCur.ConnectCase) ? rowCur.ConnectCase : "TH 1.1";
                     BuildTableCornerConnect(doc, rowCur, rowNext, cCase, opts, level, placedIds, ensureCol, placeTransom,
                         sym1, sym2, sym3, sym4, sym5, sym6, sym7, isStandalone: true);
                 }
-                else if (nRows == 1 && !string.IsNullOrEmpty(rowCur.ConnectCase) && rowCur.ConnectCase != "None")
+                else if (hasSoloConnect)
                 {
-                    // Chế độ test 1 hàng đơn lẻ có ConnectCase: Dựng nhịp cuối + nhịp rẽ mẫu
+                    // Chế độ 1 hàng đơn lẻ có ConnectCase: Dựng nhịp cuối + nhịp rẽ mẫu
                     BuildTableCornerConnect(doc, rowCur, null, rowCur.ConnectCase, opts, level, placedIds, ensureCol, placeTransom,
                         sym1, sym2, sym3, sym4, sym5, sym6, sym7, isStandalone: true);
                 }
             }
 
             return null;
-        }
-
-        /// <summary>
-        /// DỰNG CÁC NHỊP THẲNG TIÊU CHUẨN CỦA 1 HÀNG TRONG TABLE:
-        /// Nếu hasCornerConnect = true, nhịp cuối cùng sẽ do hàm Connect chuyên trách xử lý hoàn thiện.
-        /// </summary>
-        /// <summary>
-        /// THI CÔNG LIÊN TỤC NHIỀU HÀNG THEO CHUỖI ĐỘNG (100% DỮ LIỆU TỪ TABLE):
-        /// Đọc trực tiếp BayLengths, Width, ConnectCase từ từng hàng trong Table.
-        /// Chuyển tiếp góc chuẩn xác từ cửa ngõ của Row i sang Row i+1, không bao giờ hardcode kích thước.
-        /// </summary>
-        private static void BuildTableChainedContinuous(Document doc, BuildOptions opts, List<BayRowModel> rows, Level level, List<int> placedIds,
-            Action<double, double> ensureCol, Action<double, double, double, double, double> placeTransom,
-            FamilySymbol sym1, FamilySymbol sym2, FamilySymbol sym3, FamilySymbol sym4, FamilySymbol sym5, FamilySymbol sym6, FamilySymbol sym7,
-            bool isClosedLoop)
-        {
-            double jackH = GetJackHeight(opts);
-            double z0 = opts.Z0;
-            int storyCount = (opts != null && opts.StoryCount > 0) ? opts.StoryCount : 1;
-            double topZ = GetTopZ(z0, jackH, storyCount, opts);
-            double zH1 = z0 + jackH + 135;
-            double zH3 = z0 + jackH + 830;
-            double zH6 = z0 + jackH + 2180;
-            double zH7 = z0 + jackH + 2630;
-            double zDeck = z0 + jackH + 1730;
-
-            int nRows = rows.Count;
-            if (nRows == 0) return;
-
-            // Tọa độ 2 cột bắt đầu hiện tại (Mép ngoài pOut và Mép trong pIn)
-            double curOutX = rows[0].StartX;
-            double curOutY = rows[0].StartY;
-            double W0 = rows[0].Width > 0 ? rows[0].Width : 1200.0;
-            double ang0Rad = rows[0].AngleDeg * Math.PI / 180.0;
-            double curUx = Math.Cos(ang0Rad), curUy = Math.Sin(ang0Rad);
-            double curVx = -curUy, curVy = curUx; // Pháp tuyến hướng vào mặt trong (+90 độ)
-            double curInX = curOutX + W0 * curVx;
-            double curInY = curOutY + W0 * curVy;
-            double curRot = rows[0].AngleDeg;
-            double curW = W0;
-
-            for (int r = 0; r < nRows; r++)
-            {
-                var rowCur = rows[r];
-                var rowNext = (r < nRows - 1) ? rows[r + 1] : (isClosedLoop ? rows[0] : null);
-                bool hasNext = (rowNext != null) && (!string.IsNullOrEmpty(rowCur.ConnectCase) && rowCur.ConnectCase != "None");
-
-                var bayLens = (rowCur.BayLengths != null && rowCur.BayLengths.Count > 0)
-                    ? rowCur.BayLengths
-                    : new List<double> { 1800.0 };
-
-                int nBays = bayLens.Count;
-                int nStandard = hasNext ? Math.Max(0, nBays - 1) : nBays;
-                double nextW = (rowNext != null && rowNext.Width > 0) ? rowNext.Width : 1200.0;
-
-                ensureCol(curOutX, curOutY);
-                ensureCol(curInX, curInY);
-
-                // Đầu hàng 0: Đóng kín lan can đầu hồi nếu không phải vòng khép kín
-                if (r == 0 && !isClosedLoop)
-                {
-                    placeTransom(curOutX, curOutY, zH1, curRot + 90, curW);
-                    placeTransom(curOutX, curOutY, zDeck, curRot + 90, curW);
-                    if (opts != null && opts.HasTopTransom) placeTransom(curOutX, curOutY, topZ, curRot + 90, curW);
-
-                    var rB1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(curOutX), MmToFt(curOutY), MmToFt(zH6)), curRot + 90, "l", curW);
-                    var rB2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(curOutX), MmToFt(curOutY), MmToFt(zH7)), curRot + 90, "l", curW);
-                    if (rB1 != null) placedIds.Add(rB1.Id.IntegerValue);
-                    if (rB2 != null) placedIds.Add(rB2.Id.IntegerValue);
-                    if (sym7 != null)
-                    {
-                        var tbB = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(curOutX), MmToFt(curOutY), MmToFt(zDeck)), curRot + 90, "l", curW);
-                        if (tbB != null) placedIds.Add(tbB.Id.IntegerValue);
-                    }
-                }
-
-                // Dựng các nhịp thẳng tiêu chuẩn của hàng r (100% bám sát bayLens từ Table)
-                double runDist = 0;
-                for (int b = 0; b < nStandard; b++)
-                {
-                    double bLen = bayLens[b];
-                    double p1x = curOutX + runDist * curUx;
-                    double p1y = curOutY + runDist * curUy;
-                    double p2x = curInX + runDist * curUx;
-                    double p2y = curInY + runDist * curUy;
-
-                    double nextDist = runDist + bLen;
-                    double p1NextX = curOutX + nextDist * curUx;
-                    double p1NextY = curOutY + nextDist * curUy;
-                    double p2NextX = curInX + nextDist * curUx;
-                    double p2NextY = curInY + nextDist * curUy;
-
-                    ensureCol(p1NextX, p1NextY);
-                    ensureCol(p2NextX, p2NextY);
-
-                    // Transom ngang đỡ sàn và chân tại điểm cuối nhịp
-                    placeTransom(p1NextX, p1NextY, zH1, curRot + 90, curW);
-                    placeTransom(p1NextX, p1NextY, zDeck, curRot + 90, curW);
-                    if (opts != null && opts.HasTopTransom) placeTransom(p1NextX, p1NextY, topZ, curRot + 90, curW);
-
-                    // Mép ngoài (p1): Ván lót F1, giằng chân F4, giằng chéo F5, ván chắn F7
-                    var bbOut = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(p1x), MmToFt(p1y), MmToFt(z0)), curRot, "l", bLen);
-                    var lgFOut = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1x), MmToFt(p1y), MmToFt(zH1)), curRot, "l", bLen);
-                    if (bbOut != null) placedIds.Add(bbOut.Id.IntegerValue);
-                    if (lgFOut != null) placedIds.Add(lgFOut.Id.IntegerValue);
-                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, p1x, p1y, curRot, bLen, z0, jackH, opts);
-                    if (sym7 != null)
-                    {
-                        var tbOut = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(p1x + 66 * curVx), MmToFt(p1y + 66 * curVy), MmToFt(zDeck)), curRot, "l", bLen);
-                        if (tbOut != null) placedIds.Add(tbOut.Id.IntegerValue);
-                    }
-
-                    // Mép trong (p2): Ván lót F1, giằng chân F4, giằng giữa h3, lan can kép h6/h7, ván chắn F7
-                    var bbIn = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(p2x), MmToFt(p2y), MmToFt(z0)), curRot, "l", bLen);
-                    var lgFIn = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2x), MmToFt(p2y), MmToFt(zH1)), curRot, "l", bLen);
-                    var lgMIn = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2x), MmToFt(p2y), MmToFt(zH3)), curRot, "l", bLen);
-                    var rIn1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2x), MmToFt(p2y), MmToFt(zH6)), curRot, "l", bLen);
-                    var rIn2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2x), MmToFt(p2y), MmToFt(zH7)), curRot, "l", bLen);
-                    if (bbIn != null) placedIds.Add(bbIn.Id.IntegerValue);
-                    if (lgFIn != null) placedIds.Add(lgFIn.Id.IntegerValue);
-                    if (lgMIn != null) placedIds.Add(lgMIn.Id.IntegerValue);
-                    if (rIn1 != null) placedIds.Add(rIn1.Id.IntegerValue);
-                    if (rIn2 != null) placedIds.Add(rIn2.Id.IntegerValue);
-                    if (sym7 != null)
-                    {
-                        var tbIn = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(p2x - 66 * curVx), MmToFt(p2y - 66 * curVy), MmToFt(zDeck)), curRot, "l", bLen);
-                        if (tbIn != null) placedIds.Add(tbIn.Id.IntegerValue);
-                    }
-
-                    // Mâm sàn F6
-                    if (sym6 != null)
-                    {
-                        var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p1x + 345 * curVx), MmToFt(p1y + 345 * curVy), MmToFt(zDeck)), curRot, "l", bLen);
-                        var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p2x - 345 * curVx), MmToFt(p2y - 345 * curVy), MmToFt(zDeck)), curRot, "l", bLen);
-                        if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                        if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
-                    }
-
-                    runDist = nextDist;
-                }
-
-                // XỬ LÝ NHỊP CUỐI HOẶC KHỚP GÓC NỐI SANG HÀNG TIẾP THEO
-                if (hasNext)
-                {
-                    double L_last = bayLens[nBays - 1];
-                    double p1StartX = curOutX + runDist * curUx;
-                    double p1StartY = curOutY + runDist * curUy;
-                    double p2StartX = curInX + runDist * curUx;
-                    double p2StartY = curInY + runDist * curUy;
-
-                    string cCase = rowCur.ConnectCase;
-                    if (cCase == "TH 1.1")
-                    {
-                        double L_cut = Math.Max(0, L_last - nextW);
-                        double p1MaxX = p1StartX + L_last * curUx;
-                        double p1MaxY = p1StartY + L_last * curUy;
-                        double p2MaxX = p2StartX + L_last * curUx;
-                        double p2MaxY = p2StartY + L_last * curUy;
-                        double pCx = p2StartX + L_cut * curUx;
-                        double pCy = p2StartY + L_cut * curUy;
-
-                        ensureCol(p1MaxX, p1MaxY);
-                        ensureCol(p2MaxX, p2MaxY);
-                        if (L_cut > 0) ensureCol(pCx, pCy);
-
-                        // Đóng kín đầu hồi cuối dãy tại p1Max qua curW
-                        placeTransom(p1MaxX, p1MaxY, zH1, curRot + 90, curW);
-                        placeTransom(p1MaxX, p1MaxY, zDeck, curRot + 90, curW);
-                        if (opts != null && opts.HasTopTransom) placeTransom(p1MaxX, p1MaxY, topZ, curRot + 90, curW);
-                        var rE1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1MaxX), MmToFt(p1MaxY), MmToFt(zH6)), curRot + 90, "l", curW);
-                        var rE2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1MaxX), MmToFt(p1MaxY), MmToFt(zH7)), curRot + 90, "l", curW);
-                        if (rE1 != null) placedIds.Add(rE1.Id.IntegerValue);
-                        if (rE2 != null) placedIds.Add(rE2.Id.IntegerValue);
-                        if (sym7 != null)
-                        {
-                            var tbE = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(p1MaxX), MmToFt(p1MaxY), MmToFt(zDeck)), curRot + 90, "l", curW);
-                            if (tbE != null) placedIds.Add(tbE.Id.IntegerValue);
-                        }
-
-                        // Mép ngoài: Full L_last với giằng chéo F5
-                        var bbOut = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(p1StartX), MmToFt(p1StartY), MmToFt(z0)), curRot, "l", L_last);
-                        var lgFOut = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1StartX), MmToFt(p1StartY), MmToFt(zH1)), curRot, "l", L_last);
-                        if (bbOut != null) placedIds.Add(bbOut.Id.IntegerValue);
-                        if (lgFOut != null) placedIds.Add(lgFOut.Id.IntegerValue);
-                        PlaceBayDiagonalBraces(doc, sym5, level, placedIds, p1StartX, p1StartY, curRot, L_last, z0, jackH, opts);
-                        if (sym7 != null)
-                        {
-                            var tbOut = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(p1StartX + 66 * curVx), MmToFt(p1StartY + 66 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            if (tbOut != null) placedIds.Add(tbOut.Id.IntegerValue);
-                        }
-
-                        // Mép trong: Cắt ngắn L_cut với lan can F4
-                        if (L_cut > 0)
-                        {
-                            var bbIn = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(z0)), curRot, "l", L_cut);
-                            var lgFIn = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH1)), curRot, "l", L_cut);
-                            var lgMIn = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH3)), curRot, "l", L_cut);
-                            var r1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH6)), curRot, "l", L_cut);
-                            var r2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH7)), curRot, "l", L_cut);
-                            if (bbIn != null) placedIds.Add(bbIn.Id.IntegerValue);
-                            if (lgFIn != null) placedIds.Add(lgFIn.Id.IntegerValue);
-                            if (lgMIn != null) placedIds.Add(lgMIn.Id.IntegerValue);
-                            if (r1 != null) placedIds.Add(r1.Id.IntegerValue);
-                            if (r2 != null) placedIds.Add(r2.Id.IntegerValue);
-                            if (sym7 != null)
-                            {
-                                var tbIn = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(p2StartX - 66 * curVx), MmToFt(p2StartY - 66 * curVy), MmToFt(zDeck)), curRot, "l", L_cut);
-                                if (tbIn != null) placedIds.Add(tbIn.Id.IntegerValue);
-                            }
-                        }
-
-                        // Shared Transom mở thông cửa ngõ rộng nextW dọc theo hướng tuyến curRot
-                        placeTransom(pCx, pCy, zH1, curRot, nextW);
-                        placeTransom(pCx, pCy, zDeck, curRot, nextW);
-                        if (opts != null && opts.HasTopTransom) placeTransom(pCx, pCy, topZ, curRot, nextW);
-
-                        // Mâm sàn nhịp cuối
-                        if (sym6 != null)
-                        {
-                            var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p1StartX + 345 * curVx), MmToFt(p1StartY + 345 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p2StartX - 345 * curVx), MmToFt(p2StartY - 345 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                            if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
-                        }
-
-                        // Neo hàng sau (r + 1) trực tiếp từ cửa ngõ:
-                        curOutX = p2MaxX;
-                        curOutY = p2MaxY;
-                        curInX = pCx;
-                        curInY = pCy;
-                        curUx = curVx; curUy = curVy; // Rẽ +90 độ
-                        curVx = -curUy; curVy = curUx;
-                        curRot = curRot + 90.0;
-                        curW = nextW;
-                    }
-                    else if (cCase == "TH 1.2")
-                    {
-                        double p1MaxX = p1StartX + L_last * curUx;
-                        double p1MaxY = p1StartY + L_last * curUy;
-                        double p2MaxX = p2StartX + L_last * curUx;
-                        double p2MaxY = p2StartY + L_last * curUy;
-
-                        ensureCol(p1MaxX, p1MaxY);
-                        ensureCol(p2MaxX, p2MaxY);
-
-                        // Vách trong: Lan can Family 4
-                        var bbIn = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(z0)), curRot, "l", L_last);
-                        var lgFIn = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH1)), curRot, "l", L_last);
-                        var lgMIn = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH3)), curRot, "l", L_last);
-                        var r1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH6)), curRot, "l", L_last);
-                        var r2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH7)), curRot, "l", L_last);
-                        if (bbIn != null) placedIds.Add(bbIn.Id.IntegerValue);
-                        if (lgFIn != null) placedIds.Add(lgFIn.Id.IntegerValue);
-                        if (lgMIn != null) placedIds.Add(lgMIn.Id.IntegerValue);
-                        if (r1 != null) placedIds.Add(r1.Id.IntegerValue);
-                        if (r2 != null) placedIds.Add(r2.Id.IntegerValue);
-                        if (sym7 != null)
-                        {
-                            var tbIn = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(p2StartX - 66 * curVx), MmToFt(p2StartY - 66 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            if (tbIn != null) placedIds.Add(tbIn.Id.IntegerValue);
-                        }
-
-                        // Đỉnh đầu hồi đóng kín
-                        placeTransom(p2MaxX, p2MaxY, zH1, curRot - 90, curW);
-                        placeTransom(p2MaxX, p2MaxY, zDeck, curRot - 90, curW);
-                        if (opts != null && opts.HasTopTransom) placeTransom(p2MaxX, p2MaxY, topZ, curRot - 90, curW);
-                        var rTop1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2MaxX), MmToFt(p2MaxY), MmToFt(zH6)), curRot - 90, "l", curW);
-                        var rTop2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2MaxX), MmToFt(p2MaxY), MmToFt(zH7)), curRot - 90, "l", curW);
-                        if (rTop1 != null) placedIds.Add(rTop1.Id.IntegerValue);
-                        if (rTop2 != null) placedIds.Add(rTop2.Id.IntegerValue);
-                        if (sym7 != null)
-                        {
-                            var tbTop = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(p2MaxX), MmToFt(p2MaxY), MmToFt(zDeck)), curRot - 90, "l", curW);
-                            if (tbTop != null) placedIds.Add(tbTop.Id.IntegerValue);
-                        }
-
-                        // Cửa ngõ mở thông sang hàng sau tại mép ngoài p1StartX (rộng nextW)
-                        placeTransom(p1StartX, p1StartY, zH1, curRot, nextW);
-                        placeTransom(p1StartX, p1StartY, zDeck, curRot, nextW);
-                        if (opts != null && opts.HasTopTransom) placeTransom(p1StartX, p1StartY, topZ, curRot, nextW);
-
-                        if (sym6 != null)
-                        {
-                            var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p1StartX + 345 * curVx), MmToFt(p1StartY + 345 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p2StartX - 345 * curVx), MmToFt(p2StartY - 345 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                            if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
-                        }
-
-                        // Neo hàng sau (rẽ -90 độ sang phải)
-                        curOutX = p1MaxX;
-                        curOutY = p1MaxY;
-                        curInX = p1StartX;
-                        curInY = p1StartY;
-                        curUx = -curVx; curUy = -curVy; // Rẽ -90 độ
-                        curVx = -curUy; curVy = curUx;
-                        curRot = curRot - 90.0;
-                        curW = nextW;
-                    }
-                    else if (cCase == "TH 1.3")
-                    {
-                        double L_cut = Math.Max(0, L_last - nextW);
-                        double p1MaxX = p1StartX + L_last * curUx;
-                        double p1MaxY = p1StartY + L_last * curUy;
-                        double p2MaxX = p2StartX + L_last * curUx;
-                        double p2MaxY = p2StartY + L_last * curUy;
-                        double pCx = p1StartX + L_cut * curUx;
-                        double pCy = p1StartY + L_cut * curUy;
-
-                        ensureCol(p1MaxX, p1MaxY);
-                        ensureCol(p2MaxX, p2MaxY);
-                        if (L_cut > 0) ensureCol(pCx, pCy);
-
-                        // Mép ngoài (p2/top): Lan can Family 4
-                        var bbIn = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(z0)), curRot, "l", L_last);
-                        var lgFIn = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH1)), curRot, "l", L_last);
-                        var lgMIn = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH3)), curRot, "l", L_last);
-                        var r1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH6)), curRot, "l", L_last);
-                        var r2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH7)), curRot, "l", L_last);
-                        if (bbIn != null) placedIds.Add(bbIn.Id.IntegerValue);
-                        if (lgFIn != null) placedIds.Add(lgFIn.Id.IntegerValue);
-                        if (lgMIn != null) placedIds.Add(lgMIn.Id.IntegerValue);
-                        if (r1 != null) placedIds.Add(r1.Id.IntegerValue);
-                        if (r2 != null) placedIds.Add(r2.Id.IntegerValue);
-                        if (sym7 != null)
-                        {
-                            var tbIn = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(p2StartX - 66 * curVx), MmToFt(p2StartY - 66 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            if (tbIn != null) placedIds.Add(tbIn.Id.IntegerValue);
-                        }
-
-                        // Mép dưới (p1): Giằng chéo thu ngắn Family 5
-                        if (L_cut > 0)
-                        {
-                            var bbOut = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(p1StartX), MmToFt(p1StartY), MmToFt(z0)), curRot, "l", L_cut);
-                            var lgFOut = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1StartX), MmToFt(p1StartY), MmToFt(zH1)), curRot, "l", L_cut);
-                            if (bbOut != null) placedIds.Add(bbOut.Id.IntegerValue);
-                            if (lgFOut != null) placedIds.Add(lgFOut.Id.IntegerValue);
-                            PlaceBayDiagonalBraces(doc, sym5, level, placedIds, p1StartX, p1StartY, curRot, L_cut, z0, jackH, opts);
-                            if (sym7 != null)
-                            {
-                                var tbOut = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(p1StartX + 66 * curVx), MmToFt(p1StartY + 66 * curVy), MmToFt(zDeck)), curRot, "l", L_cut);
-                                if (tbOut != null) placedIds.Add(tbOut.Id.IntegerValue);
-                            }
-                        }
-
-                        // Cửa ngõ mở thông rộng nextW tại pCx
-                        placeTransom(pCx, pCy, zH1, curRot, nextW);
-                        placeTransom(pCx, pCy, zDeck, curRot, nextW);
-                        if (opts != null && opts.HasTopTransom) placeTransom(pCx, pCy, topZ, curRot, nextW);
-
-                        // Đóng kín đầu hồi cuối dãy tại p1MaxX
-                        placeTransom(p1MaxX, p1MaxY, zH1, curRot + 90, curW);
-                        placeTransom(p1MaxX, p1MaxY, zDeck, curRot + 90, curW);
-                        if (opts != null && opts.HasTopTransom) placeTransom(p1MaxX, p1MaxY, topZ, curRot + 90, curW);
-                        var rE1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1MaxX), MmToFt(p1MaxY), MmToFt(zH6)), curRot + 90, "l", curW);
-                        var rE2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1MaxX), MmToFt(p1MaxY), MmToFt(zH7)), curRot + 90, "l", curW);
-                        if (rE1 != null) placedIds.Add(rE1.Id.IntegerValue);
-                        if (rE2 != null) placedIds.Add(rE2.Id.IntegerValue);
-                        if (sym7 != null)
-                        {
-                            var tbE = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(p1MaxX), MmToFt(p1MaxY), MmToFt(zDeck)), curRot + 90, "l", curW);
-                            if (tbE != null) placedIds.Add(tbE.Id.IntegerValue);
-                        }
-
-                        if (sym6 != null)
-                        {
-                            var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p1StartX + 345 * curVx), MmToFt(p1StartY + 345 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p2StartX - 345 * curVx), MmToFt(p2StartY - 345 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                            if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
-                        }
-
-                        // Neo hàng sau (rẽ -90 độ sang -Y)
-                        curOutX = pCx;
-                        curOutY = pCy;
-                        curInX = p1MaxX;
-                        curInY = p1MaxY;
-                        curUx = -curVx; curUy = -curVy;
-                        curVx = -curUy; curVy = curUx;
-                        curRot = curRot - 90.0;
-                        curW = nextW;
-                    }
-                    else if (cCase == "TH 1.4")
-                    {
-                        double p1MaxX = p1StartX + L_last * curUx;
-                        double p1MaxY = p1StartY + L_last * curUy;
-                        double p2MaxX = p2StartX + L_last * curUx;
-                        double p2MaxY = p2StartY + L_last * curUy;
-
-                        ensureCol(p1MaxX, p1MaxY);
-                        ensureCol(p2MaxX, p2MaxY);
-
-                        // Vách trong: Giằng chéo Family 5
-                        var bbOut = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(p1StartX), MmToFt(p1StartY), MmToFt(z0)), curRot, "l", L_last);
-                        var lgFOut = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1StartX), MmToFt(p1StartY), MmToFt(zH1)), curRot, "l", L_last);
-                        if (bbOut != null) placedIds.Add(bbOut.Id.IntegerValue);
-                        if (lgFOut != null) placedIds.Add(lgFOut.Id.IntegerValue);
-                        PlaceBayDiagonalBraces(doc, sym5, level, placedIds, p1StartX, p1StartY, curRot, L_last, z0, jackH, opts);
-                        if (sym7 != null)
-                        {
-                            var tbOut = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(p1StartX + 66 * curVx), MmToFt(p1StartY + 66 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            if (tbOut != null) placedIds.Add(tbOut.Id.IntegerValue);
-                        }
-
-                        // Đáy đầu hồi đóng kín
-                        placeTransom(p1MaxX, p1MaxY, zH1, curRot + 90, curW);
-                        placeTransom(p1MaxX, p1MaxY, zDeck, curRot + 90, curW);
-                        if (opts != null && opts.HasTopTransom) placeTransom(p1MaxX, p1MaxY, topZ, curRot + 90, curW);
-                        var rB1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1MaxX), MmToFt(p1MaxY), MmToFt(zH6)), curRot + 90, "l", curW);
-                        var rB2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1MaxX), MmToFt(p1MaxY), MmToFt(zH7)), curRot + 90, "l", curW);
-                        if (rB1 != null) placedIds.Add(rB1.Id.IntegerValue);
-                        if (rB2 != null) placedIds.Add(rB2.Id.IntegerValue);
-                        if (sym7 != null)
-                        {
-                            var tbB = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(p1MaxX), MmToFt(p1MaxY), MmToFt(zDeck)), curRot + 90, "l", curW);
-                            if (tbB != null) placedIds.Add(tbB.Id.IntegerValue);
-                        }
-
-                        // Cửa ngõ mở sang hàng sau tại p2MaxX
-                        placeTransom(p2MaxX, p2MaxY, zH1, curRot + 90, nextW);
-                        placeTransom(p2MaxX, p2MaxY, zDeck, curRot + 90, nextW);
-                        if (opts != null && opts.HasTopTransom) placeTransom(p2MaxX, p2MaxY, topZ, curRot + 90, nextW);
-
-                        if (sym6 != null)
-                        {
-                            var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p1StartX + 345 * curVx), MmToFt(p1StartY + 345 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p2StartX - 345 * curVx), MmToFt(p2StartY - 345 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                            if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
-                        }
-
-                        // Neo hàng sau (rẽ +90 độ)
-                        curOutX = p2MaxX;
-                        curOutY = p2MaxY;
-                        curInX = p2StartX;
-                        curInY = p2StartY;
-                        curUx = curVx; curUy = curVy;
-                        curVx = -curUy; curVy = curUx;
-                        curRot = curRot + 90.0;
-                        curW = nextW;
-                    }
-                    else if (cCase == "TH 2.1")
-                    {
-                        double p1MaxX = p1StartX + L_last * curUx;
-                        double p1MaxY = p1StartY + L_last * curUy;
-                        double p2MaxX = p2StartX + L_last * curUx;
-                        double p2MaxY = p2StartY + L_last * curUy;
-
-                        ensureCol(p1MaxX, p1MaxY);
-                        ensureCol(p2MaxX, p2MaxY);
-
-                        var bbOut = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(p1StartX), MmToFt(p1StartY), MmToFt(z0)), curRot, "l", L_last);
-                        var lgFOut = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1StartX), MmToFt(p1StartY), MmToFt(zH1)), curRot, "l", L_last);
-                        if (bbOut != null) placedIds.Add(bbOut.Id.IntegerValue);
-                        if (lgFOut != null) placedIds.Add(lgFOut.Id.IntegerValue);
-                        PlaceBayDiagonalBraces(doc, sym5, level, placedIds, p1StartX, p1StartY, curRot, L_last, z0, jackH, opts);
-
-                        var bbIn = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(z0)), curRot, "l", L_last);
-                        var lgFIn = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH1)), curRot, "l", L_last);
-                        var lgMIn = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH3)), curRot, "l", L_last);
-                        var r1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH6)), curRot, "l", L_last);
-                        var r2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH7)), curRot, "l", L_last);
-                        if (bbIn != null) placedIds.Add(bbIn.Id.IntegerValue);
-                        if (lgFIn != null) placedIds.Add(lgFIn.Id.IntegerValue);
-                        if (lgMIn != null) placedIds.Add(lgMIn.Id.IntegerValue);
-                        if (r1 != null) placedIds.Add(r1.Id.IntegerValue);
-                        if (r2 != null) placedIds.Add(r2.Id.IntegerValue);
-
-                        if (sym6 != null)
-                        {
-                            var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p1StartX + 345 * curVx), MmToFt(p1StartY + 345 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p2StartX - 345 * curVx), MmToFt(p2StartY - 345 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                            if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
-                        }
-
-                        double L_first = (rowNext != null && rowNext.BayLengths != null && rowNext.BayLengths.Count > 0) ? rowNext.BayLengths[0] : 1800.0;
-                        double pExtOutX = p1MaxX + nextW * curUx;
-                        double pExtOutY = p1MaxY + nextW * curUy;
-                        double pExtTopOutX = pExtOutX + L_first * curVx;
-                        double pExtTopOutY = pExtOutY + L_first * curVy;
-                        double pExtTopInX = p1MaxX + L_first * curVx;
-                        double pExtTopInY = p1MaxY + L_first * curVy;
-
-                        ensureCol(pExtOutX, pExtOutY);
-                        ensureCol(pExtTopOutX, pExtTopOutY);
-                        ensureCol(pExtTopInX, pExtTopInY);
-
-                        placeTransom(p1MaxX, p1MaxY, zH1, curRot, nextW);
-                        placeTransom(p1MaxX, p1MaxY, zDeck, curRot, nextW);
-                        var rS1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1MaxX), MmToFt(p1MaxY), MmToFt(zH6)), curRot, "l", nextW);
-                        var rS2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1MaxX), MmToFt(p1MaxY), MmToFt(zH7)), curRot, "l", nextW);
-                        if (rS1 != null) placedIds.Add(rS1.Id.IntegerValue);
-                        if (rS2 != null) placedIds.Add(rS2.Id.IntegerValue);
-
-                        var bbExtE = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(pExtOutX), MmToFt(pExtOutY), MmToFt(z0)), curRot + 90, "l", L_first);
-                        var lgFExtE = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(pExtOutX), MmToFt(pExtOutY), MmToFt(zH1)), curRot + 90, "l", L_first);
-                        if (bbExtE != null) placedIds.Add(bbExtE.Id.IntegerValue);
-                        if (lgFExtE != null) placedIds.Add(lgFExtE.Id.IntegerValue);
-                        PlaceBayDiagonalBraces(doc, sym5, level, placedIds, pExtOutX, pExtOutY, curRot + 90, L_first, z0, jackH, opts);
-
-                        double L_in = Math.Max(0, L_first - curW);
-                        if (L_in > 0)
-                        {
-                            var bbInS = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(p2MaxX), MmToFt(p2MaxY), MmToFt(z0)), curRot + 90, "l", L_in);
-                            var lgFInS = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2MaxX), MmToFt(p2MaxY), MmToFt(zH1)), curRot + 90, "l", L_in);
-                            var lgMInS = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2MaxX), MmToFt(p2MaxY), MmToFt(zH3)), curRot + 90, "l", L_in);
-                            var rInS1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2MaxX), MmToFt(p2MaxY), MmToFt(zH6)), curRot + 90, "l", L_in);
-                            var rInS2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2MaxX), MmToFt(p2MaxY), MmToFt(zH7)), curRot + 90, "l", L_in);
-                            if (bbInS != null) placedIds.Add(bbInS.Id.IntegerValue);
-                            if (lgFInS != null) placedIds.Add(lgFInS.Id.IntegerValue);
-                            if (lgMInS != null) placedIds.Add(lgMInS.Id.IntegerValue);
-                            if (rInS1 != null) placedIds.Add(rInS1.Id.IntegerValue);
-                            if (rInS2 != null) placedIds.Add(rInS2.Id.IntegerValue);
-                        }
-
-                        placeTransom(pExtTopInX, pExtTopInY, zH1, curRot, nextW);
-                        placeTransom(pExtTopInX, pExtTopInY, zDeck, curRot, nextW);
-                        if (opts != null && opts.HasTopTransom) placeTransom(pExtTopInX, pExtTopInY, topZ, curRot, nextW);
-
-                        if (sym6 != null)
-                        {
-                            var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p1MaxX + 345 * curUx), MmToFt(p1MaxY + 345 * curUy), MmToFt(zDeck)), curRot + 90, "l", L_first);
-                            var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(pExtOutX - 345 * curUx), MmToFt(pExtOutY - 345 * curUy), MmToFt(zDeck)), curRot + 90, "l", L_first);
-                            if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                            if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
-                        }
-
-                        curOutX = pExtTopOutX;
-                        curOutY = pExtTopOutY;
-                        curInX = pExtTopInX;
-                        curInY = pExtTopInY;
-                        curUx = curVx; curUy = curVy;
-                        curVx = -curUy; curVy = curUx;
-                        curRot = curRot + 90.0;
-                        curW = nextW;
-                    }
-                    else if (cCase == "TH 2.2")
-                    {
-                        double p1MaxX = p1StartX + L_last * curUx;
-                        double p1MaxY = p1StartY + L_last * curUy;
-                        double p2MaxX = p2StartX + L_last * curUx;
-                        double p2MaxY = p2StartY + L_last * curUy;
-
-                        ensureCol(p1MaxX, p1MaxY);
-                        ensureCol(p2MaxX, p2MaxY);
-
-                        var bbOut = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(p1StartX), MmToFt(p1StartY), MmToFt(z0)), curRot, "l", L_last);
-                        var lgFOut = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1StartX), MmToFt(p1StartY), MmToFt(zH1)), curRot, "l", L_last);
-                        if (bbOut != null) placedIds.Add(bbOut.Id.IntegerValue);
-                        if (lgFOut != null) placedIds.Add(lgFOut.Id.IntegerValue);
-                        PlaceBayDiagonalBraces(doc, sym5, level, placedIds, p1StartX, p1StartY, curRot, L_last, z0, jackH, opts);
-
-                        var bbIn = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(z0)), curRot, "l", L_last);
-                        var lgFIn = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH1)), curRot, "l", L_last);
-                        var lgMIn = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH3)), curRot, "l", L_last);
-                        var r1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH6)), curRot, "l", L_last);
-                        var r2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2StartX), MmToFt(p2StartY), MmToFt(zH7)), curRot, "l", L_last);
-                        if (bbIn != null) placedIds.Add(bbIn.Id.IntegerValue);
-                        if (lgFIn != null) placedIds.Add(lgFIn.Id.IntegerValue);
-                        if (lgMIn != null) placedIds.Add(lgMIn.Id.IntegerValue);
-                        if (r1 != null) placedIds.Add(r1.Id.IntegerValue);
-                        if (r2 != null) placedIds.Add(r2.Id.IntegerValue);
-
-                        if (sym6 != null)
-                        {
-                            var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p1StartX + 345 * curVx), MmToFt(p1StartY + 345 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p2StartX - 345 * curVx), MmToFt(p2StartY - 345 * curVy), MmToFt(zDeck)), curRot, "l", L_last);
-                            if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                            if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
-                        }
-
-                        double L_first = (rowNext != null && rowNext.BayLengths != null && rowNext.BayLengths.Count > 0) ? rowNext.BayLengths[0] : 1800.0;
-                        double pExtTopInX = p2MaxX + nextW * curUx;
-                        double pExtTopInY = p2MaxY + nextW * curUy;
-                        double pExtOutEndX = p2MaxX + L_first * (-curVx);
-                        double pExtOutEndY = p2MaxY + L_first * (-curVy);
-                        double pExtTopOutX = pExtTopInX + L_first * (-curVx);
-                        double pExtTopOutY = pExtTopInY + L_first * (-curVy);
-
-                        ensureCol(pExtTopInX, pExtTopInY);
-                        ensureCol(pExtTopOutX, pExtTopOutY);
-                        ensureCol(pExtOutEndX, pExtOutEndY);
-
-                        placeTransom(p2MaxX, p2MaxY, zH1, curRot, nextW);
-                        placeTransom(p2MaxX, p2MaxY, zDeck, curRot, nextW);
-                        var rF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2MaxX), MmToFt(p2MaxY), MmToFt(zH6)), curRot, "l", nextW);
-                        var rF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p2MaxX), MmToFt(p2MaxY), MmToFt(zH7)), curRot, "l", nextW);
-                        if (rF1 != null) placedIds.Add(rF1.Id.IntegerValue);
-                        if (rF2 != null) placedIds.Add(rF2.Id.IntegerValue);
-
-                        var bbExtT = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(pExtTopInX), MmToFt(pExtTopInY), MmToFt(z0)), curRot - 90, "l", L_first);
-                        var lgFExtT = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(pExtTopInX), MmToFt(pExtTopInY), MmToFt(zH1)), curRot - 90, "l", L_first);
-                        var lgMExtT = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(pExtTopInX), MmToFt(pExtTopInY), MmToFt(zH3)), curRot - 90, "l", L_first);
-                        var rExtT1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(pExtTopInX), MmToFt(pExtTopInY), MmToFt(zH6)), curRot - 90, "l", L_first);
-                        var rExtT2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(pExtTopInX), MmToFt(pExtTopInY), MmToFt(zH7)), curRot - 90, "l", L_first);
-                        if (bbExtT != null) placedIds.Add(bbExtT.Id.IntegerValue);
-                        if (lgFExtT != null) placedIds.Add(lgFExtT.Id.IntegerValue);
-                        if (lgMExtT != null) placedIds.Add(lgMExtT.Id.IntegerValue);
-                        if (rExtT1 != null) placedIds.Add(rExtT1.Id.IntegerValue);
-                        if (rExtT2 != null) placedIds.Add(rExtT2.Id.IntegerValue);
-
-                        double L_in = Math.Max(0, L_first - curW);
-                        if (L_in > 0)
-                        {
-                            double pInStartX = p1MaxX;
-                            double pInStartY = p1MaxY;
-                            var bbInS = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(pInStartX), MmToFt(pInStartY), MmToFt(z0)), curRot - 90, "l", L_in);
-                            var lgFInS = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(pInStartX), MmToFt(pInStartY), MmToFt(zH1)), curRot - 90, "l", L_in);
-                            if (bbInS != null) placedIds.Add(bbInS.Id.IntegerValue);
-                            if (lgFInS != null) placedIds.Add(lgFInS.Id.IntegerValue);
-                            PlaceBayDiagonalBraces(doc, sym5, level, placedIds, pInStartX, pInStartY, curRot - 90, L_in, z0, jackH, opts);
-                        }
-
-                        placeTransom(pExtOutEndX, pExtOutEndY, zH1, curRot, nextW);
-                        placeTransom(pExtOutEndX, pExtOutEndY, zDeck, curRot, nextW);
-                        if (opts != null && opts.HasTopTransom) placeTransom(pExtOutEndX, pExtOutEndY, topZ, curRot, nextW);
-
-                        if (sym6 != null)
-                        {
-                            var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(p2MaxX - 345 * curUx), MmToFt(p2MaxY - 345 * curUy), MmToFt(zDeck)), curRot - 90, "l", L_first);
-                            var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(pExtTopInX + 345 * curUx), MmToFt(pExtTopInY + 345 * curUy), MmToFt(zDeck)), curRot - 90, "l", L_first);
-                            if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                            if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
-                        }
-
-                        curOutX = pExtTopOutX;
-                        curOutY = pExtTopOutY;
-                        curInX = pExtOutEndX;
-                        curInY = pExtOutEndY;
-                        curUx = -curVx; curUy = -curVy;
-                        curVx = -curUy; curVy = curUx;
-                        curRot = curRot - 90.0;
-                        curW = nextW;
-                    }
-                    else
-                    {
-                        // Mặc định chuyển tiếp nếu là các trường hợp khác
-                        curOutX = p1StartX + L_last * curUx;
-                        curOutY = p1StartY + L_last * curUy;
-                        curInX = p2StartX + L_last * curUx;
-                        curInY = p2StartY + L_last * curUy;
-                    }
-                }
-                else
-                {
-                    // Hàng cuối cùng không nối tiếp: Đóng kín đầu hồi cuối cùng an toàn 100%
-                    double p1FinalX = curOutX + runDist * curUx;
-                    double p1FinalY = curOutY + runDist * curUy;
-                    placeTransom(p1FinalX, p1FinalY, zH1, curRot + 90, curW);
-                    placeTransom(p1FinalX, p1FinalY, zDeck, curRot + 90, curW);
-                    if (opts != null && opts.HasTopTransom) placeTransom(p1FinalX, p1FinalY, topZ, curRot + 90, curW);
-
-                    var rEnd1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1FinalX), MmToFt(p1FinalY), MmToFt(zH6)), curRot + 90, "l", curW);
-                    var rEnd2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(p1FinalX), MmToFt(p1FinalY), MmToFt(zH7)), curRot + 90, "l", curW);
-                    if (rEnd1 != null) placedIds.Add(rEnd1.Id.IntegerValue);
-                    if (rEnd2 != null) placedIds.Add(rEnd2.Id.IntegerValue);
-                    if (sym7 != null)
-                    {
-                        var tbEnd = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(p1FinalX), MmToFt(p1FinalY), MmToFt(zDeck)), curRot + 90, "l", curW);
-                        if (tbEnd != null) placedIds.Add(tbEnd.Id.IntegerValue);
-                    }
-                }
-            }
         }
 
         private static void BuildTableStraightRun(Document doc, BayRowModel row, BuildOptions opts, Level level, List<int> placedIds,
@@ -850,6 +182,8 @@ namespace RevitScaffoldingTool
                 : new List<double> { 1800 };
 
             double W = row.Width > 0 ? row.Width : (opts.BayWidth > 0 ? opts.BayWidth : 1200.0);
+            double pw = GetPlankWidth(W);
+            double pOff = GetPlankOffset(W);
             double jackH = GetJackHeight(opts);
             double z0 = opts.Z0;
             int storyCount = (opts != null && opts.StoryCount > 0) ? opts.StoryCount : 1;
@@ -875,9 +209,9 @@ namespace RevitScaffoldingTool
             int nStandardBays = hasCornerConnect ? Math.Max(0, nBaysTotal - 1) : nBaysTotal;
             int nColsToBuild = nStandardBays + 1;
 
-            if (nStandardBays <= startBayIndex && hasCornerConnect) return;
+            if (nStandardBays < startBayIndex && hasCornerConnect) return;
 
-            // 1. Dựng cột và giằng ngang cho các nhịp tiêu chuẩn
+            // 1. Dựng cột và giằng ngang cho các nhịp tiêu chuẩn (bao gồm cột đầu k = 0)
             for (int k = startBayIndex; k < nColsToBuild; k++)
             {
                 double d = distances[k];
@@ -999,15 +333,15 @@ namespace RevitScaffoldingTool
 
                     if (sym6 != null)
                     {
-                        double pDeck1_x = px1 + 345 * vx;
-                        double pDeck1_y = py1 + 345 * vy;
-                        double pDeck2_x = px2 - 345 * vx;
-                        double pDeck2_y = py2 - 345 * vy;
+                        double pDeck1_x = px1 + pOff * vx;
+                        double pDeck1_y = py1 + pOff * vy;
+                        double pDeck2_x = px2 - pOff * vx;
+                        double pDeck2_y = py2 - pOff * vy;
 
                         var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(pDeck1_x), MmToFt(pDeck1_y), MmToFt(zDeck)), row.AngleDeg, "l", bLen);
                         var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(pDeck2_x), MmToFt(pDeck2_y), MmToFt(zDeck)), row.AngleDeg, "l", bLen);
-                        if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                        if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                        if (pl1 != null) { SetParam(pl1, "w", pw); placedIds.Add(pl1.Id.IntegerValue); }
+                        if (pl2 != null) { SetParam(pl2, "w", pw); placedIds.Add(pl2.Id.IntegerValue); }
                     }
 
                     if (sym7 != null)
@@ -1024,8 +358,6 @@ namespace RevitScaffoldingTool
         /// <summary>
         /// XỬ LÝ KHỚP NỐI CORNER CONNECT GIỮA ROW TRƯỚC VÀ ROW SAU:
         /// Áp dụng 100% danh mục cấu kiện chuẩn ALINCO từ Cases1.cs và Cases2.cs.
-        /// isStandalone = true: Dựng cả nhánh rẽ mẫu (cho test 1 row đơn lẻ).
-        /// isStandalone = false: Chỉ xử lý góc nối & mở thông cửa sang rowNext, không dựng trùng lặp rowNext.
         /// </summary>
         private static void BuildTableCornerConnect(Document doc, BayRowModel rowPrev, BayRowModel rowNext, string connectCase,
             BuildOptions opts, Level level, List<int> placedIds, Action<double, double> ensureCol, Action<double, double, double, double, double> placeTransom,
@@ -1079,40 +411,53 @@ namespace RevitScaffoldingTool
 
             double W_A = rowA.Width > 0 ? rowA.Width : 1200.0;
             double W_B = (rowB != null && rowB.Width > 0) ? rowB.Width : (rowA.Width > 0 ? rowA.Width : 1200.0);
+            double pwA = GetPlankWidth(W_A), pOffA = GetPlankOffset(W_A);
+            double pwB = GetPlankWidth(W_B), pOffB = GetPlankOffset(W_B);
+
             double L_last = (rowA.BayLengths != null && rowA.BayLengths.Count > 0) ? rowA.BayLengths.Last() : 1800.0;
             double L_first = (rowB != null && rowB.BayLengths != null && rowB.BayLengths.Count > 0) ? rowB.BayLengths.First() : 1800.0;
-            double L_cut = (L_last > W_B) ? (L_last - W_B) : 0.0;
+            double L_cut = (L_last > W_B + 10.0) ? (L_last - W_B) : 0.0;
 
             double angRadA = rowA.AngleDeg * Math.PI / 180.0;
             double uAx = Math.Cos(angRadA), uAy = Math.Sin(angRadA);
             double vAx = Math.Sin(angRadA), vAy = -Math.Cos(angRadA);
 
-            // Điểm bắt đầu của nhịp cuối dãy A
             double totalDistA = (rowA.BayLengths != null && rowA.BayLengths.Count > 0) ? rowA.BayLengths.Sum() : L_last;
             double dStartLast = totalDistA - L_last;
             double xStartLast = rowA.StartX + dStartLast * uAx;
             double yStartLast = rowA.StartY + dStartLast * uAy;
+            double xBack = xStartLast + W_A * vAx;
+            double yBack = yStartLast + W_A * vAy;
 
-            // Tọa độ cột cấy xC và cột ngoài xMax
             double xC = xStartLast + L_cut * uAx;
             double yC = yStartLast + L_cut * uAy;
             double xMax = xStartLast + L_last * uAx;
             double yMax = yStartLast + L_last * uAy;
 
-            if (L_cut > 0)
+            ensureCol(xStartLast, yStartLast);
+            ensureCol(xBack, yBack);
+            if (L_cut > 10.0)
             {
                 ensureCol(xC, yC);
             }
             ensureCol(xMax, yMax);
             ensureCol(xMax + W_A * vAx, yMax + W_A * vAy);
 
+            double zH1 = z0 + jackH + 135;
+            placeTransom(xStartLast, yStartLast, zH1, rowA.AngleDeg - 90, W_A);
+            if (opts != null && opts.HasTopTransom)
+            {
+                placeTransom(xStartLast, yStartLast, topZ, rowA.AngleDeg - 90, W_A);
+            }
+            for (int s = 0; s < storyCount; s++)
+            {
+                placeTransom(xStartLast, yStartLast, z0 + jackH + 1730 + s * 1800.0, rowA.AngleDeg - 90, W_A);
+            }
+
             // 1. NHỊP CUỐI DÃY A - MẶT SAU (offset W_A): Đầy đủ nhịp L_last
-            double xBack = xStartLast + W_A * vAx;
-            double yBack = yStartLast + W_A * vAy;
             var bbBack = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xBack), MmToFt(yBack), MmToFt(z0)), rowA.AngleDeg, "l", L_last);
             if (bbBack != null) placedIds.Add(bbBack.Id.IntegerValue);
 
-            double zH1 = z0 + jackH + 135;
             var lgFBack = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xBack), MmToFt(yBack), MmToFt(zH1)), rowA.AngleDeg, "l", L_last);
             if (lgFBack != null) placedIds.Add(lgFBack.Id.IntegerValue);
 
@@ -1136,15 +481,15 @@ namespace RevitScaffoldingTool
 
                 if (sym6 != null)
                 {
-                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xStartLast + 345 * vAx), MmToFt(yStartLast + 345 * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
-                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xBack - 345 * vAx), MmToFt(yBack - 345 * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
-                    if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                    if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xStartLast + pOffA * vAx), MmToFt(yStartLast + pOffA * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
+                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xBack - pOffA * vAx), MmToFt(yBack - pOffA * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
+                    if (pl1 != null) { SetParam(pl1, "w", pwA); placedIds.Add(pl1.Id.IntegerValue); }
+                    if (pl2 != null) { SetParam(pl2, "w", pwA); placedIds.Add(pl2.Id.IntegerValue); }
                 }
             }
 
-            // 2. NHỊP CUỐI DÃY A - MẶT TRƯỚC: Thu ngắn về L_cut (nếu L_cut > 0)
-            if (L_cut > 0)
+            // 2. NHỊP CUỐI DÃY A - MẶT TRƯỚC: Thu ngắn về L_cut (nếu L_cut > 10)
+            if (L_cut > 10.0)
             {
                 var bbFront = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xStartLast), MmToFt(yStartLast), MmToFt(z0)), rowA.AngleDeg, "l", L_cut);
                 var lgFFron = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xStartLast), MmToFt(yStartLast), MmToFt(zH1)), rowA.AngleDeg, "l", L_cut);
@@ -1223,13 +568,14 @@ namespace RevitScaffoldingTool
                 }
             }
 
-            // 4. NẾU LÀ CHẾ ĐỘ STANDALONE (TEST 1 ROW): DỰNG THÊM 1 NHỊP RẼ MẪU CHO ROW B
+            // 4. DỰNG NHỊP ĐẦU CỦA ROW B (NHÁNH RẼ +90°)
             if (isStandalone)
             {
                 double angRadB = (rowB != null) ? (rowB.AngleDeg * Math.PI / 180.0) : (angRadA + Math.PI / 2.0);
                 double rotDegB = (rowB != null) ? rowB.AngleDeg : (rowA.AngleDeg + 90.0);
                 double uBx = Math.Cos(angRadB), uBy = Math.Sin(angRadB);
                 double vBx = Math.Sin(angRadB), vBy = -Math.Cos(angRadB);
+                bool closeReturnEnd = (rowB == null || rowB.BayLengths == null || rowB.BayLengths.Count <= 1);
 
                 double xTopC = xC + L_first * uBx;
                 double yTopC = yC + L_first * uBy;
@@ -1246,19 +592,17 @@ namespace RevitScaffoldingTool
 
                 var lgRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC), MmToFt(yC), MmToFt(zH1)), rotDegB, "l", L_first);
                 var lgRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yMax), MmToFt(zH1)), rotDegB, "l", L_first);
-                var trRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(zH1)), rotDegB - 90, "l", W_B);
                 if (lgRF1 != null) placedIds.Add(lgRF1.Id.IntegerValue);
                 if (lgRF2 != null) placedIds.Add(lgRF2.Id.IntegerValue);
-                if (trRF2 != null) placedIds.Add(trRF2.Id.IntegerValue);
+                placeTransom(xTopC, yTopC, zH1, rotDegB - 90, W_B);
 
                 if (opts != null && opts.HasTopTransom)
                 {
                     var lgTopRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC), MmToFt(yC), MmToFt(topZ)), rotDegB, "l", L_first);
                     var lgTopRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yMax), MmToFt(topZ)), rotDegB, "l", L_first);
-                    var trTopRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(topZ)), rotDegB - 90, "l", W_B);
                     if (lgTopRF1 != null) placedIds.Add(lgTopRF1.Id.IntegerValue);
                     if (lgTopRF2 != null) placedIds.Add(lgTopRF2.Id.IntegerValue);
-                    if (trTopRF2 != null) placedIds.Add(trTopRF2.Id.IntegerValue);
+                    placeTransom(xTopC, yTopC, topZ, rotDegB - 90, W_B);
                 }
 
                 for (int s = 0; s < storyCount; s++)
@@ -1274,35 +618,42 @@ namespace RevitScaffoldingTool
 
                     PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xMax, yMax, rotDegB, L_first, z0, jackH, s, storyCount, opts);
 
-                    var trRD2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(zDeck)), rotDegB - 90, "l", W_B);
-                    if (trRD2 != null) placedIds.Add(trRD2.Id.IntegerValue);
+                    placeTransom(xTopC, yTopC, zDeck, rotDegB - 90, W_B);
 
                     if (sym6 != null)
                     {
-                        var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xC + 345 * vBx), MmToFt(yC + 345 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xMax - 345 * vBx), MmToFt(yMax - 345 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                        if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                        var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xC + pOffB * vBx), MmToFt(yC + pOffB * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
+                        var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xMax - pOffB * vBx), MmToFt(yMax - pOffB * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
+                        if (pl1 != null) { SetParam(pl1, "w", pwB); placedIds.Add(pl1.Id.IntegerValue); }
+                        if (pl2 != null) { SetParam(pl2, "w", pwB); placedIds.Add(pl2.Id.IntegerValue); }
                     }
 
                     if (sym7 != null)
                     {
                         var tbL = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xC + 66 * vBx), MmToFt(yC + 66 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
                         var tbR = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xMax - 66 * vBx), MmToFt(yMax - 66 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var tbEnd = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(zDeck)), rotDegB - 90, "l", W_B);
                         if (tbL != null) placedIds.Add(tbL.Id.IntegerValue);
                         if (tbR != null) placedIds.Add(tbR.Id.IntegerValue);
-                        if (tbEnd != null) placedIds.Add(tbEnd.Id.IntegerValue);
+
+                        if (closeReturnEnd)
+                        {
+                            var tbEnd = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xTopC - 66 * uBx), MmToFt(yTopC - 66 * uBy), MmToFt(zDeck)), rotDegB - 90, "l", W_B);
+                            if (tbEnd != null) placedIds.Add(tbEnd.Id.IntegerValue);
+                        }
                     }
 
                     var rL1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC), MmToFt(yC), MmToFt(zH6)), rotDegB, "l", L_first);
-                    var rE1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(zH6)), rotDegB - 90, "l", W_B);
                     var rL2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC), MmToFt(yC), MmToFt(zH7)), rotDegB, "l", L_first);
-                    var rE2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(zH7)), rotDegB - 90, "l", W_B);
                     if (rL1 != null) placedIds.Add(rL1.Id.IntegerValue);
-                    if (rE1 != null) placedIds.Add(rE1.Id.IntegerValue);
                     if (rL2 != null) placedIds.Add(rL2.Id.IntegerValue);
-                    if (rE2 != null) placedIds.Add(rE2.Id.IntegerValue);
+
+                    if (closeReturnEnd)
+                    {
+                        var rE1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(zH6)), rotDegB - 90, "l", W_B);
+                        var rE2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(zH7)), rotDegB - 90, "l", W_B);
+                        if (rE1 != null) placedIds.Add(rE1.Id.IntegerValue);
+                        if (rE2 != null) placedIds.Add(rE2.Id.IntegerValue);
+                    }
                 }
             }
         }
@@ -1323,9 +674,12 @@ namespace RevitScaffoldingTool
 
             double W_A = rowA.Width > 0 ? rowA.Width : 1200.0;
             double W_B = (rowB != null && rowB.Width > 0) ? rowB.Width : (rowA.Width > 0 ? rowA.Width : 1200.0);
+            double pwA = GetPlankWidth(W_A), pOffA = GetPlankOffset(W_A);
+            double pwB = GetPlankWidth(W_B), pOffB = GetPlankOffset(W_B);
+
             double L_last = (rowA.BayLengths != null && rowA.BayLengths.Count > 0) ? rowA.BayLengths.Last() : 1200.0;
             double L_first = (rowB != null && rowB.BayLengths != null && rowB.BayLengths.Count > 0) ? rowB.BayLengths.First() : 1200.0;
-            double L_cut = (L_last > W_B) ? (L_last - W_B) : 0.0;
+            double L_cut = (L_last > W_B + 10.0) ? (L_last - W_B) : 0.0;
 
             double angRadA = rowA.AngleDeg * Math.PI / 180.0;
             double uAx = Math.Cos(angRadA), uAy = Math.Sin(angRadA);
@@ -1335,26 +689,38 @@ namespace RevitScaffoldingTool
             double dStartLast = totalDistA - L_last;
             double xStartLast = rowA.StartX + dStartLast * uAx;
             double yStartLast = rowA.StartY + dStartLast * uAy;
+            double xBack = xStartLast + W_A * vAx;
+            double yBack = yStartLast + W_A * vAy;
 
             double xC = xStartLast + L_cut * uAx;
             double yC = yStartLast + L_cut * uAy;
             double xMax = xStartLast + L_last * uAx;
             double yMax = yStartLast + L_last * uAy;
 
-            if (L_cut > 0)
+            ensureCol(xStartLast, yStartLast);
+            ensureCol(xBack, yBack);
+            if (L_cut > 10.0)
             {
                 ensureCol(xC, yC);
             }
             ensureCol(xMax, yMax);
             ensureCol(xMax + W_A * vAx, yMax + W_A * vAy);
 
+            double zH1 = z0 + jackH + 135;
+            placeTransom(xStartLast, yStartLast, zH1, rowA.AngleDeg - 90, W_A);
+            if (opts != null && opts.HasTopTransom)
+            {
+                placeTransom(xStartLast, yStartLast, topZ, rowA.AngleDeg - 90, W_A);
+            }
+            for (int s = 0; s < storyCount; s++)
+            {
+                placeTransom(xStartLast, yStartLast, z0 + jackH + 1730 + s * 1800.0, rowA.AngleDeg - 90, W_A);
+            }
+
             // 1. Mặt sau nhịp cuối Row A (offset W_A)
-            double xBack = xStartLast + W_A * vAx;
-            double yBack = yStartLast + W_A * vAy;
             var bbLastBack = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xBack), MmToFt(yBack), MmToFt(z0)), rowA.AngleDeg, "l", L_last);
             if (bbLastBack != null) placedIds.Add(bbLastBack.Id.IntegerValue);
 
-            double zH1 = z0 + jackH + 135;
             var lgFLastBack = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xBack), MmToFt(yBack), MmToFt(zH1)), rowA.AngleDeg, "l", L_last);
             if (lgFLastBack != null) placedIds.Add(lgFLastBack.Id.IntegerValue);
 
@@ -1378,15 +744,15 @@ namespace RevitScaffoldingTool
 
                 if (sym6 != null)
                 {
-                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xStartLast + 345 * vAx), MmToFt(yStartLast + 345 * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
-                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xBack - 345 * vAx), MmToFt(yBack - 345 * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
-                    if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                    if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xStartLast + pOffA * vAx), MmToFt(yStartLast + pOffA * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
+                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xBack - pOffA * vAx), MmToFt(yBack - pOffA * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
+                    if (pl1 != null) { SetParam(pl1, "w", pwA); placedIds.Add(pl1.Id.IntegerValue); }
+                    if (pl2 != null) { SetParam(pl2, "w", pwA); placedIds.Add(pl2.Id.IntegerValue); }
                 }
             }
 
-            // 2. Mặt trước nhịp cuối Row A: Thu ngắn về L_cut (nếu L_cut > 0)
-            if (L_cut > 0)
+            // 2. Mặt trước nhịp cuối Row A: Thu ngắn về L_cut (nếu L_cut > 10)
+            if (L_cut > 10.0)
             {
                 var bbFront = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xStartLast), MmToFt(yStartLast), MmToFt(z0)), rowA.AngleDeg, "l", L_cut);
                 if (bbFront != null) placedIds.Add(bbFront.Id.IntegerValue);
@@ -1472,6 +838,7 @@ namespace RevitScaffoldingTool
                 double rotDegB = (rowB != null) ? rowB.AngleDeg : (rowA.AngleDeg + 90.0);
                 double uBx = Math.Cos(angRadB), uBy = Math.Sin(angRadB);
                 double vBx = Math.Sin(angRadB), vBy = -Math.Cos(angRadB);
+                bool closeReturnEnd = (rowB == null || rowB.BayLengths == null || rowB.BayLengths.Count <= 1);
 
                 double xTop1 = xC + L_first * uBx;
                 double yTop1 = yC + L_first * uBy;
@@ -1488,19 +855,17 @@ namespace RevitScaffoldingTool
 
                 var lgRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC), MmToFt(yC), MmToFt(zH1)), rotDegB, "l", L_first);
                 var lgRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yMax), MmToFt(zH1)), rotDegB, "l", L_first);
-                var trRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH1)), rotDegB - 90, "l", W_B);
                 if (lgRF1 != null) placedIds.Add(lgRF1.Id.IntegerValue);
                 if (lgRF2 != null) placedIds.Add(lgRF2.Id.IntegerValue);
-                if (trRF2 != null) placedIds.Add(trRF2.Id.IntegerValue);
+                placeTransom(xTop1, yTop1, zH1, rotDegB - 90, W_B);
 
                 if (opts != null && opts.HasTopTransom)
                 {
                     var lgTopRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC), MmToFt(yC), MmToFt(topZ)), rotDegB, "l", L_first);
                     var lgTopRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yMax), MmToFt(topZ)), rotDegB, "l", L_first);
-                    var trTopRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(topZ)), rotDegB - 90, "l", W_B);
                     if (lgTopRF1 != null) placedIds.Add(lgTopRF1.Id.IntegerValue);
                     if (lgTopRF2 != null) placedIds.Add(lgTopRF2.Id.IntegerValue);
-                    if (trTopRF2 != null) placedIds.Add(trTopRF2.Id.IntegerValue);
+                    placeTransom(xTop1, yTop1, topZ, rotDegB - 90, W_B);
                 }
 
                 for (int s = 0; s < storyCount; s++)
@@ -1512,35 +877,42 @@ namespace RevitScaffoldingTool
 
                     PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xMax, yMax, rotDegB, L_first, z0, jackH, s, storyCount, opts);
 
-                    var trRD2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zDeck)), rotDegB - 90, "l", W_B);
-                    if (trRD2 != null) placedIds.Add(trRD2.Id.IntegerValue);
+                    placeTransom(xTop1, yTop1, zDeck, rotDegB - 90, W_B);
 
                     if (sym6 != null)
                     {
-                        var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xC + 345 * vBx), MmToFt(yC + 345 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xMax - 345 * vBx), MmToFt(yMax - 345 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                        if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                        var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xC + pOffB * vBx), MmToFt(yC + pOffB * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
+                        var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xMax - pOffB * vBx), MmToFt(yMax - pOffB * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
+                        if (pl1 != null) { SetParam(pl1, "w", pwB); placedIds.Add(pl1.Id.IntegerValue); }
+                        if (pl2 != null) { SetParam(pl2, "w", pwB); placedIds.Add(pl2.Id.IntegerValue); }
                     }
 
                     if (sym7 != null)
                     {
                         var tbL = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xC + 66 * vBx), MmToFt(yC + 66 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
                         var tbR = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xMax - 66 * vBx), MmToFt(yMax - 66 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var tbEnd = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zDeck)), rotDegB - 90, "l", W_B);
                         if (tbL != null) placedIds.Add(tbL.Id.IntegerValue);
                         if (tbR != null) placedIds.Add(tbR.Id.IntegerValue);
-                        if (tbEnd != null) placedIds.Add(tbEnd.Id.IntegerValue);
+
+                        if (closeReturnEnd)
+                        {
+                            var tbEnd = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xTop1 - 66 * uBx), MmToFt(yTop1 - 66 * uBy), MmToFt(zDeck)), rotDegB - 90, "l", W_B);
+                            if (tbEnd != null) placedIds.Add(tbEnd.Id.IntegerValue);
+                        }
                     }
 
                     var rL1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC), MmToFt(yC), MmToFt(zH6)), rotDegB, "l", L_first);
-                    var rE1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH6)), rotDegB - 90, "l", W_B);
                     var rL2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC), MmToFt(yC), MmToFt(zH7)), rotDegB, "l", L_first);
-                    var rE2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH7)), rotDegB - 90, "l", W_B);
                     if (rL1 != null) placedIds.Add(rL1.Id.IntegerValue);
-                    if (rE1 != null) placedIds.Add(rE1.Id.IntegerValue);
                     if (rL2 != null) placedIds.Add(rL2.Id.IntegerValue);
-                    if (rE2 != null) placedIds.Add(rE2.Id.IntegerValue);
+
+                    if (closeReturnEnd)
+                    {
+                        var rE1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH6)), rotDegB - 90, "l", W_B);
+                        var rE2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH7)), rotDegB - 90, "l", W_B);
+                        if (rE1 != null) placedIds.Add(rE1.Id.IntegerValue);
+                        if (rE2 != null) placedIds.Add(rE2.Id.IntegerValue);
+                    }
                 }
             }
         }
@@ -1561,9 +933,12 @@ namespace RevitScaffoldingTool
 
             double W_A = rowA.Width > 0 ? rowA.Width : 1200.0;
             double W_B = (rowB != null && rowB.Width > 0) ? rowB.Width : (rowA.Width > 0 ? rowA.Width : 1200.0);
+            double pwA = GetPlankWidth(W_A), pOffA = GetPlankOffset(W_A);
+            double pwB = GetPlankWidth(W_B), pOffB = GetPlankOffset(W_B);
+
             double L_last = (rowA.BayLengths != null && rowA.BayLengths.Count > 0) ? rowA.BayLengths.Last() : 1800.0;
             double L_first = (rowB != null && rowB.BayLengths != null && rowB.BayLengths.Count > 0) ? rowB.BayLengths.First() : 1800.0;
-            double L_cut = (L_last > W_B) ? (L_last - W_B) : 0.0;
+            double L_cut = (L_last > W_B + 10.0) ? (L_last - W_B) : 0.0;
 
             double angRadA = rowA.AngleDeg * Math.PI / 180.0;
             double uAx = Math.Cos(angRadA), uAy = Math.Sin(angRadA);
@@ -1573,6 +948,8 @@ namespace RevitScaffoldingTool
             double dStartLast = totalDistA - L_last;
             double xStartLast = rowA.StartX + dStartLast * uAx;
             double yStartLast = rowA.StartY + dStartLast * uAy;
+            double xBack = xStartLast + W_A * vAx;
+            double yBack = yStartLast + W_A * vAy;
 
             double xC = xStartLast + L_cut * uAx;
             double yC = yStartLast + L_cut * uAy;
@@ -1580,18 +957,29 @@ namespace RevitScaffoldingTool
             double yMax = yStartLast + L_last * uAy;
 
             ensureCol(xStartLast, yStartLast);
+            ensureCol(xBack, yBack);
             ensureCol(xMax, yMax);
-            if (L_cut > 0)
+            if (L_cut > 10.0)
             {
                 ensureCol(xC + W_A * vAx, yC + W_A * vAy);
             }
             ensureCol(xMax + W_A * vAx, yMax + W_A * vAy);
 
+            double zH1 = z0 + jackH + 135;
+            placeTransom(xStartLast, yStartLast, zH1, rowA.AngleDeg - 90, W_A);
+            if (opts != null && opts.HasTopTransom)
+            {
+                placeTransom(xStartLast, yStartLast, topZ, rowA.AngleDeg - 90, W_A);
+            }
+            for (int s = 0; s < storyCount; s++)
+            {
+                placeTransom(xStartLast, yStartLast, z0 + jackH + 1730 + s * 1800.0, rowA.AngleDeg - 90, W_A);
+            }
+
             // 1. MẶT TRƯỚC (Y = 0): Đầy đủ nhịp L_last
             var bbFront = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xStartLast), MmToFt(yStartLast), MmToFt(z0)), rowA.AngleDeg, "l", L_last);
             if (bbFront != null) placedIds.Add(bbFront.Id.IntegerValue);
 
-            double zH1 = z0 + jackH + 135;
             var lgFFront = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xStartLast), MmToFt(yStartLast), MmToFt(zH1)), rowA.AngleDeg, "l", L_last);
             if (lgFFront != null) placedIds.Add(lgFFront.Id.IntegerValue);
 
@@ -1624,20 +1012,16 @@ namespace RevitScaffoldingTool
 
                 if (sym6 != null)
                 {
-                    double xBack_s = xStartLast + W_A * vAx;
-                    double yBack_s = yStartLast + W_A * vAy;
-                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xStartLast + 345 * vAx), MmToFt(yStartLast + 345 * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
-                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xBack_s - 345 * vAx), MmToFt(yBack_s - 345 * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
-                    if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                    if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xStartLast + pOffA * vAx), MmToFt(yStartLast + pOffA * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
+                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xBack - pOffA * vAx), MmToFt(yBack - pOffA * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
+                    if (pl1 != null) { SetParam(pl1, "w", pwA); placedIds.Add(pl1.Id.IntegerValue); }
+                    if (pl2 != null) { SetParam(pl2, "w", pwA); placedIds.Add(pl2.Id.IntegerValue); }
                 }
             }
 
-            // 2. MẶT SAU (offset W_A): Thu ngắn về L_cut (nếu L_cut > 0)
-            if (L_cut > 0)
+            // 2. MẶT SAU (offset W_A): Thu ngắn về L_cut (nếu L_cut > 10)
+            if (L_cut > 10.0)
             {
-                double xBack = xStartLast + W_A * vAx;
-                double yBack = yStartLast + W_A * vAy;
                 var bbBack = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xBack), MmToFt(yBack), MmToFt(z0)), rowA.AngleDeg, "l", L_cut);
                 var lgFBack = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xBack), MmToFt(yBack), MmToFt(zH1)), rowA.AngleDeg, "l", L_cut);
                 if (bbBack != null) placedIds.Add(bbBack.Id.IntegerValue);
@@ -1708,13 +1092,13 @@ namespace RevitScaffoldingTool
                 }
             }
 
-            // Standalone return branch
+            // 4. DỰNG NHÁNH RẼ HƯỚNG -90° (Kế thừa chuẩn xác ExecuteCase1_3)
             if (isStandalone)
             {
                 double angRadB = (rowB != null) ? (rowB.AngleDeg * Math.PI / 180.0) : (angRadA - Math.PI / 2.0);
                 double rotDegB = (rowB != null) ? rowB.AngleDeg : (rowA.AngleDeg - 90.0);
                 double uBx = Math.Cos(angRadB), uBy = Math.Sin(angRadB);
-                double vBx = Math.Sin(angRadB), vBy = -Math.Cos(angRadB);
+                bool closeReturnEnd = (rowB == null || rowB.BayLengths == null || rowB.BayLengths.Count <= 1);
 
                 double xMax_back = xMax + W_A * vAx;
                 double yMax_back = yMax + W_A * vAy;
@@ -1733,19 +1117,17 @@ namespace RevitScaffoldingTool
 
                 var lgRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC_back), MmToFt(yC_back), MmToFt(zH1)), rotDegB, "l", L_first);
                 var lgRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax_back), MmToFt(yMax_back), MmToFt(zH1)), rotDegB, "l", L_first);
-                var trRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(zH1)), rotDegB - 90, "l", W_B);
                 if (lgRF1 != null) placedIds.Add(lgRF1.Id.IntegerValue);
                 if (lgRF2 != null) placedIds.Add(lgRF2.Id.IntegerValue);
-                if (trRF2 != null) placedIds.Add(trRF2.Id.IntegerValue);
+                placeTransom(xTopC, yTopC, zH1, rowA.AngleDeg, W_B);
 
                 if (opts != null && opts.HasTopTransom)
                 {
                     var lgTopRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC_back), MmToFt(yC_back), MmToFt(topZ)), rotDegB, "l", L_first);
                     var lgTopRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax_back), MmToFt(yMax_back), MmToFt(topZ)), rotDegB, "l", L_first);
-                    var trTopRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(topZ)), rotDegB - 90, "l", W_B);
                     if (lgTopRF1 != null) placedIds.Add(lgTopRF1.Id.IntegerValue);
                     if (lgTopRF2 != null) placedIds.Add(lgTopRF2.Id.IntegerValue);
-                    if (trTopRF2 != null) placedIds.Add(trTopRF2.Id.IntegerValue);
+                    placeTransom(xTopC, yTopC, topZ, rowA.AngleDeg, W_B);
                 }
 
                 for (int s = 0; s < storyCount; s++)
@@ -1756,40 +1138,50 @@ namespace RevitScaffoldingTool
                     double zH6 = z0 + jackH + 2180 + sOff;
                     double zH7 = z0 + jackH + 2630 + sOff;
 
-                    var lgRM1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC_back), MmToFt(yC_back), MmToFt(zH3)), rotDegB, "l", L_first);
-                    if (lgRM1 != null) placedIds.Add(lgRM1.Id.IntegerValue);
+                    // Mép phải nhánh rẽ (xMax_back): Giằng giữa h3 + lan can kép h6/h7
+                    var lgRM2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax_back), MmToFt(yMax_back), MmToFt(zH3)), rotDegB, "l", L_first);
+                    if (lgRM2 != null) placedIds.Add(lgRM2.Id.IntegerValue);
 
-                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xMax_back, yMax_back, rotDegB, L_first, z0, jackH, s, storyCount, opts);
+                    // Mép trái nhánh rẽ (xC_back): Giằng chéo Family 5
+                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xC_back, yC_back, rotDegB, L_first, z0, jackH, s, storyCount, opts);
 
-                    var trRD2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(zDeck)), rotDegB - 90, "l", W_B);
-                    if (trRD2 != null) placedIds.Add(trRD2.Id.IntegerValue);
+                    placeTransom(xTopC, yTopC, zDeck, rowA.AngleDeg, W_B);
 
+                    // Vector ngang từ C_back sang Max_back là uA = (uAx, uAy)
                     if (sym6 != null)
                     {
-                        var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xC_back + 345 * vBx), MmToFt(yC_back + 345 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xMax_back - 345 * vBx), MmToFt(yMax_back - 345 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                        if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                        var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xC_back + pOffB * uAx), MmToFt(yC_back + pOffB * uAy), MmToFt(zDeck)), rotDegB, "l", L_first);
+                        var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xMax_back - pOffB * uAx), MmToFt(yMax_back - pOffB * uAy), MmToFt(zDeck)), rotDegB, "l", L_first);
+                        if (pl1 != null) { SetParam(pl1, "w", pwB); placedIds.Add(pl1.Id.IntegerValue); }
+                        if (pl2 != null) { SetParam(pl2, "w", pwB); placedIds.Add(pl2.Id.IntegerValue); }
                     }
 
                     if (sym7 != null)
                     {
-                        var tbL = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xC_back + 66 * vBx), MmToFt(yC_back + 66 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var tbR = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xMax_back - 66 * vBx), MmToFt(yMax_back - 66 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var tbEnd = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(zDeck)), rotDegB - 90, "l", W_B);
+                        var tbL = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xC_back + 66 * uAx), MmToFt(yC_back + 66 * uAy), MmToFt(zDeck)), rotDegB, "l", L_first);
+                        var tbR = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xMax_back - 66 * uAx), MmToFt(yMax_back - 66 * uAy), MmToFt(zDeck)), rotDegB, "l", L_first);
                         if (tbL != null) placedIds.Add(tbL.Id.IntegerValue);
                         if (tbR != null) placedIds.Add(tbR.Id.IntegerValue);
-                        if (tbEnd != null) placedIds.Add(tbEnd.Id.IntegerValue);
+
+                        if (closeReturnEnd)
+                        {
+                            var tbEnd = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xTopC - 66 * uBx), MmToFt(yTopC - 66 * uBy), MmToFt(zDeck)), rowA.AngleDeg, "l", W_B);
+                            if (tbEnd != null) placedIds.Add(tbEnd.Id.IntegerValue);
+                        }
                     }
 
-                    var rL1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC_back), MmToFt(yC_back), MmToFt(zH6)), rotDegB, "l", L_first);
-                    var rE1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(zH6)), rotDegB - 90, "l", W_B);
-                    var rL2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC_back), MmToFt(yC_back), MmToFt(zH7)), rotDegB, "l", L_first);
-                    var rE2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(zH7)), rotDegB - 90, "l", W_B);
-                    if (rL1 != null) placedIds.Add(rL1.Id.IntegerValue);
-                    if (rE1 != null) placedIds.Add(rE1.Id.IntegerValue);
-                    if (rL2 != null) placedIds.Add(rL2.Id.IntegerValue);
-                    if (rE2 != null) placedIds.Add(rE2.Id.IntegerValue);
+                    var rR1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax_back), MmToFt(yMax_back), MmToFt(zH6)), rotDegB, "l", L_first);
+                    var rR2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax_back), MmToFt(yMax_back), MmToFt(zH7)), rotDegB, "l", L_first);
+                    if (rR1 != null) placedIds.Add(rR1.Id.IntegerValue);
+                    if (rR2 != null) placedIds.Add(rR2.Id.IntegerValue);
+
+                    if (closeReturnEnd)
+                    {
+                        var rE1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(zH6)), rowA.AngleDeg, "l", W_B);
+                        var rE2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTopC), MmToFt(yTopC), MmToFt(zH7)), rowA.AngleDeg, "l", W_B);
+                        if (rE1 != null) placedIds.Add(rE1.Id.IntegerValue);
+                        if (rE2 != null) placedIds.Add(rE2.Id.IntegerValue);
+                    }
                 }
             }
         }
@@ -1810,9 +1202,12 @@ namespace RevitScaffoldingTool
 
             double W_A = rowA.Width > 0 ? rowA.Width : 1200.0;
             double W_B = (rowB != null && rowB.Width > 0) ? rowB.Width : (rowA.Width > 0 ? rowA.Width : 1200.0);
+            double pwA = GetPlankWidth(W_A), pOffA = GetPlankOffset(W_A);
+            double pwB = GetPlankWidth(W_B), pOffB = GetPlankOffset(W_B);
+
             double L_last = (rowA.BayLengths != null && rowA.BayLengths.Count > 0) ? rowA.BayLengths.Last() : 1200.0;
             double L_first = (rowB != null && rowB.BayLengths != null && rowB.BayLengths.Count > 0) ? rowB.BayLengths.First() : 1200.0;
-            double L_cut = (L_last > W_B) ? (L_last - W_B) : 0.0;
+            double L_cut = (L_last > W_B + 10.0) ? (L_last - W_B) : 0.0;
 
             double angRadA = rowA.AngleDeg * Math.PI / 180.0;
             double uAx = Math.Cos(angRadA), uAy = Math.Sin(angRadA);
@@ -1822,6 +1217,8 @@ namespace RevitScaffoldingTool
             double dStartLast = totalDistA - L_last;
             double xStartLast = rowA.StartX + dStartLast * uAx;
             double yStartLast = rowA.StartY + dStartLast * uAy;
+            double xBack = xStartLast + W_A * vAx;
+            double yBack = yStartLast + W_A * vAy;
 
             double xC = xStartLast + L_cut * uAx;
             double yC = yStartLast + L_cut * uAy;
@@ -1834,18 +1231,29 @@ namespace RevitScaffoldingTool
             double yMax_back = yMax + W_A * vAy;
 
             ensureCol(xStartLast, yStartLast);
+            ensureCol(xBack, yBack);
             ensureCol(xMax, yMax);
-            if (L_cut > 0)
+            if (L_cut > 10.0)
             {
                 ensureCol(xC_back, yC_back);
             }
             ensureCol(xMax_back, yMax_back);
 
+            double zH1 = z0 + jackH + 135;
+            placeTransom(xStartLast, yStartLast, zH1, rowA.AngleDeg - 90, W_A);
+            if (opts != null && opts.HasTopTransom)
+            {
+                placeTransom(xStartLast, yStartLast, topZ, rowA.AngleDeg - 90, W_A);
+            }
+            for (int s = 0; s < storyCount; s++)
+            {
+                placeTransom(xStartLast, yStartLast, z0 + jackH + 1730 + s * 1800.0, rowA.AngleDeg - 90, W_A);
+            }
+
             // 1. Mặt trước nhịp cuối Row A (đầy đủ nhịp L_last)
             var bbFront = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xStartLast), MmToFt(yStartLast), MmToFt(z0)), rowA.AngleDeg, "l", L_last);
             if (bbFront != null) placedIds.Add(bbFront.Id.IntegerValue);
 
-            double zH1 = z0 + jackH + 135;
             var lgFFront = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xStartLast), MmToFt(yStartLast), MmToFt(zH1)), rowA.AngleDeg, "l", L_last);
             if (lgFFront != null) placedIds.Add(lgFFront.Id.IntegerValue);
 
@@ -1878,20 +1286,16 @@ namespace RevitScaffoldingTool
 
                 if (sym6 != null)
                 {
-                    double xBack_s = xStartLast + W_A * vAx;
-                    double yBack_s = yStartLast + W_A * vAy;
-                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xStartLast + 345 * vAx), MmToFt(yStartLast + 345 * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
-                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xBack_s - 345 * vAx), MmToFt(yBack_s - 345 * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
-                    if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                    if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xStartLast + pOffA * vAx), MmToFt(yStartLast + pOffA * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
+                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xBack - pOffA * vAx), MmToFt(yBack - pOffA * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
+                    if (pl1 != null) { SetParam(pl1, "w", pwA); placedIds.Add(pl1.Id.IntegerValue); }
+                    if (pl2 != null) { SetParam(pl2, "w", pwA); placedIds.Add(pl2.Id.IntegerValue); }
                 }
             }
 
-            // 2. Mặt sau nhịp cuối Row A: Thu ngắn về L_cut (nếu L_cut > 0)
-            if (L_cut > 0)
+            // 2. Mặt sau nhịp cuối Row A: Thu ngắn về L_cut (nếu L_cut > 10)
+            if (L_cut > 10.0)
             {
-                double xBack = xStartLast + W_A * vAx;
-                double yBack = yStartLast + W_A * vAy;
                 var bbBack = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xBack), MmToFt(yBack), MmToFt(z0)), rowA.AngleDeg, "l", L_cut);
                 var lgFBack = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xBack), MmToFt(yBack), MmToFt(zH1)), rowA.AngleDeg, "l", L_cut);
                 if (bbBack != null) placedIds.Add(bbBack.Id.IntegerValue);
@@ -1959,13 +1363,13 @@ namespace RevitScaffoldingTool
                 }
             }
 
-            // 5. Standalone return branch
+            // 5. Standalone return branch (Kế thừa chuẩn xác ExecuteCase1_4)
             if (isStandalone)
             {
                 double angRadB = (rowB != null) ? (rowB.AngleDeg * Math.PI / 180.0) : (angRadA - Math.PI / 2.0);
                 double rotDegB = (rowB != null) ? rowB.AngleDeg : (rowA.AngleDeg - 90.0);
                 double uBx = Math.Cos(angRadB), uBy = Math.Sin(angRadB);
-                double vBx = Math.Sin(angRadB), vBy = -Math.Cos(angRadB);
+                bool closeReturnEnd = (rowB == null || rowB.BayLengths == null || rowB.BayLengths.Count <= 1);
 
                 double xTop1 = xC_back + L_first * uBx;
                 double yTop1 = yC_back + L_first * uBy;
@@ -1982,19 +1386,17 @@ namespace RevitScaffoldingTool
 
                 var lgRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC_back), MmToFt(yC_back), MmToFt(zH1)), rotDegB, "l", L_first);
                 var lgRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax_back), MmToFt(yMax_back), MmToFt(zH1)), rotDegB, "l", L_first);
-                var trRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH1)), rotDegB - 90, "l", W_B);
                 if (lgRF1 != null) placedIds.Add(lgRF1.Id.IntegerValue);
                 if (lgRF2 != null) placedIds.Add(lgRF2.Id.IntegerValue);
-                if (trRF2 != null) placedIds.Add(trRF2.Id.IntegerValue);
+                placeTransom(xTop1, yTop1, zH1, rowA.AngleDeg, W_B);
 
                 if (opts != null && opts.HasTopTransom)
                 {
                     var lgTopRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC_back), MmToFt(yC_back), MmToFt(topZ)), rotDegB, "l", L_first);
                     var lgTopRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax_back), MmToFt(yMax_back), MmToFt(topZ)), rotDegB, "l", L_first);
-                    var trTopRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(topZ)), rotDegB - 90, "l", W_B);
                     if (lgTopRF1 != null) placedIds.Add(lgTopRF1.Id.IntegerValue);
                     if (lgTopRF2 != null) placedIds.Add(lgTopRF2.Id.IntegerValue);
-                    if (trTopRF2 != null) placedIds.Add(trTopRF2.Id.IntegerValue);
+                    placeTransom(xTop1, yTop1, topZ, rowA.AngleDeg, W_B);
                 }
 
                 for (int s = 0; s < storyCount; s++)
@@ -2004,44 +1406,54 @@ namespace RevitScaffoldingTool
                     double zH6 = z0 + jackH + 2180 + sOff;
                     double zH7 = z0 + jackH + 2630 + sOff;
 
-                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xMax_back, yMax_back, rotDegB, L_first, z0, jackH, s, storyCount, opts);
+                    // Mép trái nhánh rẽ (xC_back): Giằng chéo Family 5
+                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xC_back, yC_back, rotDegB, L_first, z0, jackH, s, storyCount, opts);
 
-                    var trRD2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zDeck)), rotDegB - 90, "l", W_B);
-                    if (trRD2 != null) placedIds.Add(trRD2.Id.IntegerValue);
+                    placeTransom(xTop1, yTop1, zDeck, rowA.AngleDeg, W_B);
 
+                    // Vector ngang từ C_back sang Max_back là uA = (uAx, uAy)
                     if (sym6 != null)
                     {
-                        var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xC_back + 345 * vBx), MmToFt(yC_back + 345 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xMax_back - 345 * vBx), MmToFt(yMax_back - 345 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                        if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                        var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xC_back + pOffB * uAx), MmToFt(yC_back + pOffB * uAy), MmToFt(zDeck)), rotDegB, "l", L_first);
+                        var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xMax_back - pOffB * uAx), MmToFt(yMax_back - pOffB * uAy), MmToFt(zDeck)), rotDegB, "l", L_first);
+                        if (pl1 != null) { SetParam(pl1, "w", pwB); placedIds.Add(pl1.Id.IntegerValue); }
+                        if (pl2 != null) { SetParam(pl2, "w", pwB); placedIds.Add(pl2.Id.IntegerValue); }
                     }
 
                     if (sym7 != null)
                     {
-                        var tbL = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xC_back + 66 * vBx), MmToFt(yC_back + 66 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var tbR = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xMax_back - 66 * vBx), MmToFt(yMax_back - 66 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var tbEnd = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zDeck)), rotDegB - 90, "l", W_B);
+                        var tbL = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xC_back + 66 * uAx), MmToFt(yC_back + 66 * uAy), MmToFt(zDeck)), rotDegB, "l", L_first);
+                        var tbR = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xMax_back - 66 * uAx), MmToFt(yMax_back - 66 * uAy), MmToFt(zDeck)), rotDegB, "l", L_first);
                         if (tbL != null) placedIds.Add(tbL.Id.IntegerValue);
                         if (tbR != null) placedIds.Add(tbR.Id.IntegerValue);
-                        if (tbEnd != null) placedIds.Add(tbEnd.Id.IntegerValue);
+
+                        if (closeReturnEnd)
+                        {
+                            var tbEnd = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xTop1 - 66 * uBx), MmToFt(yTop1 - 66 * uBy), MmToFt(zDeck)), rowA.AngleDeg, "l", W_B);
+                            if (tbEnd != null) placedIds.Add(tbEnd.Id.IntegerValue);
+                        }
                     }
 
-                    var rL1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC_back), MmToFt(yC_back), MmToFt(zH6)), rotDegB, "l", L_first);
-                    var rE1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH6)), rotDegB - 90, "l", W_B);
-                    var rL2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xC_back), MmToFt(yC_back), MmToFt(zH7)), rotDegB, "l", L_first);
-                    var rE2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH7)), rotDegB - 90, "l", W_B);
-                    if (rL1 != null) placedIds.Add(rL1.Id.IntegerValue);
-                    if (rE1 != null) placedIds.Add(rE1.Id.IntegerValue);
-                    if (rL2 != null) placedIds.Add(rL2.Id.IntegerValue);
-                    if (rE2 != null) placedIds.Add(rE2.Id.IntegerValue);
+                    // Mép phải nhánh rẽ (xMax_back): Lan can kép h6/h7
+                    var rR1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax_back), MmToFt(yMax_back), MmToFt(zH6)), rotDegB, "l", L_first);
+                    var rR2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax_back), MmToFt(yMax_back), MmToFt(zH7)), rotDegB, "l", L_first);
+                    if (rR1 != null) placedIds.Add(rR1.Id.IntegerValue);
+                    if (rR2 != null) placedIds.Add(rR2.Id.IntegerValue);
+
+                    if (closeReturnEnd)
+                    {
+                        var rE1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH6)), rowA.AngleDeg, "l", W_B);
+                        var rE2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH7)), rowA.AngleDeg, "l", W_B);
+                        if (rE1 != null) placedIds.Add(rE1.Id.IntegerValue);
+                        if (rE2 != null) placedIds.Add(rE2.Id.IntegerValue);
+                    }
                 }
             }
         }
 
         /// <summary>
-        /// TH 2.1: Khớp nối góc 90° - Vươn ra ngoài (Outer Protrusion +Y).
-        /// Kế thừa 100% cấu kiện ExecuteCase2_1.
+        /// TH 2.1: Khớp nối góc 90° - Vươn ra ngoài (Outer Protrusion +Y, Mép sau phẳng).
+        /// Kế thừa 100% cấu kiện ExecuteCase2_1 với mọi kích thước (L_last, L_first, W_A, W_B).
         /// </summary>
         private static void ConnectCorner_TH2_1(Document doc, BayRowModel rowA, BayRowModel rowB, BuildOptions opts, Level level,
             List<int> placedIds, Action<double, double> ensureCol, Action<double, double, double, double, double> placeTransom,
@@ -2055,9 +1467,12 @@ namespace RevitScaffoldingTool
 
             double W_A = rowA.Width > 0 ? rowA.Width : 1200.0;
             double W_B = (rowB != null && rowB.Width > 0) ? rowB.Width : (rowA.Width > 0 ? rowA.Width : 1200.0);
+            double pwA = GetPlankWidth(W_A), pOffA = GetPlankOffset(W_A);
+            double pwB = GetPlankWidth(W_B), pOffB = GetPlankOffset(W_B);
+
             double L_last = (rowA.BayLengths != null && rowA.BayLengths.Count > 0) ? rowA.BayLengths.Last() : 1800.0;
             double L_first = (rowB != null && rowB.BayLengths != null && rowB.BayLengths.Count > 0) ? rowB.BayLengths.First() : 1800.0;
-            double L_step = (L_first > W_A) ? (L_first - W_A) : 600.0;
+            double L_A = (L_first > W_A + 10.0) ? (L_first - W_A) : 0.0;
 
             double angRadA = rowA.AngleDeg * Math.PI / 180.0;
             double uAx = Math.Cos(angRadA), uAy = Math.Sin(angRadA);
@@ -2069,22 +1484,38 @@ namespace RevitScaffoldingTool
             double yLast = rowA.StartY + dStartLast * uAy;
             double xMax = xLast + L_last * uAx;
             double yMax = yLast + L_last * uAy;
+            double xBack = xLast + W_A * vAx;
+            double yBack = yLast + W_A * vAy;
+            double xA_back = xMax + W_A * vAx;
+            double yA_back = yMax + W_A * vAy;
 
             ensureCol(xLast, yLast);
             ensureCol(xMax, yMax);
-            ensureCol(xLast + W_A * vAx, yLast + W_A * vAy);
-            ensureCol(xMax + W_A * vAx, yMax + W_A * vAy);
+            ensureCol(xBack, yBack);
+            ensureCol(xA_back, yA_back);
 
-            // Dãy A nhịp cuối: Mặt trước và mặt sau
+            double zH1 = z0 + jackH + 135;
+            placeTransom(xLast, yLast, zH1, rowA.AngleDeg - 90, W_A);
+            placeTransom(xMax, yMax, zH1, rowA.AngleDeg - 90, W_A);
+            if (opts != null && opts.HasTopTransom)
+            {
+                placeTransom(xLast, yLast, topZ, rowA.AngleDeg - 90, W_A);
+                placeTransom(xMax, yMax, topZ, rowA.AngleDeg - 90, W_A);
+            }
+            for (int s = 0; s < storyCount; s++)
+            {
+                double sDeck = z0 + jackH + 1730 + s * 1800.0;
+                placeTransom(xLast, yLast, sDeck, rowA.AngleDeg - 90, W_A);
+                placeTransom(xMax, yMax, sDeck, rowA.AngleDeg - 90, W_A);
+            }
+
+            // 1. Dãy A nhịp cuối: Mặt trước và mặt sau đầy đủ L_last
             var bbFront = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xLast), MmToFt(yLast), MmToFt(z0)), rowA.AngleDeg, "l", L_last);
             if (bbFront != null) placedIds.Add(bbFront.Id.IntegerValue);
 
-            double zH1 = z0 + jackH + 135;
             var lgFFront = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLast), MmToFt(yLast), MmToFt(zH1)), rowA.AngleDeg, "l", L_last);
             if (lgFFront != null) placedIds.Add(lgFFront.Id.IntegerValue);
 
-            double xBack = xLast + W_A * vAx;
-            double yBack = yLast + W_A * vAy;
             var bbBack = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xBack), MmToFt(yBack), MmToFt(z0)), rowA.AngleDeg, "l", L_last);
             var lgFBack = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xBack), MmToFt(yBack), MmToFt(zH1)), rowA.AngleDeg, "l", L_last);
             if (bbBack != null) placedIds.Add(bbBack.Id.IntegerValue);
@@ -2117,10 +1548,10 @@ namespace RevitScaffoldingTool
 
                 if (sym6 != null)
                 {
-                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xLast + 345 * vAx), MmToFt(yLast + 345 * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
-                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xBack - 345 * vAx), MmToFt(yBack - 345 * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
-                    if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                    if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xLast + pOffA * vAx), MmToFt(yLast + pOffA * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
+                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xBack - pOffA * vAx), MmToFt(yBack - pOffA * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
+                    if (pl1 != null) { SetParam(pl1, "w", pwA); placedIds.Add(pl1.Id.IntegerValue); }
+                    if (pl2 != null) { SetParam(pl2, "w", pwA); placedIds.Add(pl2.Id.IntegerValue); }
                 }
 
                 if (sym7 != null)
@@ -2132,107 +1563,125 @@ namespace RevitScaffoldingTool
                 }
             }
 
-            // Shared Transom tại cửa ngõ vươn sang Row B
-            double rotReturn = (rowB != null) ? (rowB.AngleDeg - 90) : (rowA.AngleDeg);
-            placeTransom(xMax, yMax, zH1, rotReturn, W_B);
-
-            if (opts != null && opts.HasTopTransom)
-            {
-                placeTransom(xMax, yMax, topZ, rotReturn, W_B);
-            }
-
-            for (int s = 0; s < storyCount; s++)
-            {
-                double sDeck = z0 + jackH + 1730 + s * 1800.0;
-                placeTransom(xMax, yMax, sDeck, rotReturn, W_B);
-            }
-
-            // Standalone return branch
+            // 2. PHẦN B: NHÁNH RẼ NGOÀI TH 2.1 (MÉP SAU PHẲNG: L_first x W_B)
             if (isStandalone)
             {
-                double angRadB = (rowB != null) ? (rowB.AngleDeg * Math.PI / 180.0) : (angRadA + Math.PI / 2.0);
-                double rotDegB = (rowB != null) ? rowB.AngleDeg : (rowA.AngleDeg + 90.0);
-                double uBx = Math.Cos(angRadB), uBy = Math.Sin(angRadB);
-                double vBx = Math.Sin(angRadB), vBy = -Math.Cos(angRadB);
+                double rotDegB = rowA.AngleDeg + 90.0;
+                double uBx = -vAx, uBy = -vAy; // Hướng +90° (từ yBack lên yTop)
+                bool closeReturnEnd = (rowB == null || rowB.BayLengths == null || rowB.BayLengths.Count <= 1);
 
-                double xTop1 = xMax + L_first * uBx;
-                double yTop1 = yMax + L_first * uBy;
-                double x2 = xMax + W_B * vBx;
-                double y2 = yMax + W_B * vBy;
-                double xTop2 = x2 + L_first * uBx;
-                double yTop2 = y2 + L_first * uBy;
+                double xB_back = xA_back + W_B * uAx;
+                double yB_back = yA_back + W_B * uAy;
+                double xA_top = xA_back + L_first * uBx;
+                double yA_top = yA_back + L_first * uBy;
+                double xB_top = xB_back + L_first * uBx;
+                double yB_top = yB_back + L_first * uBy;
 
-                ensureCol(x2, y2);
-                ensureCol(xTop1, yTop1);
-                ensureCol(xTop2, yTop2);
-
-                var bbR1 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xMax), MmToFt(yMax), MmToFt(z0)), rotDegB, "l", L_first);
-                var bbR2 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(x2), MmToFt(y2), MmToFt(z0)), rotDegB, "l", L_first);
+                var bbR1 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xA_back), MmToFt(yA_back), MmToFt(z0)), rowA.AngleDeg, "l", W_B);
+                var bbR2 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xA_top),  MmToFt(yA_top),  MmToFt(z0)), rowA.AngleDeg, "l", W_B);
                 if (bbR1 != null) placedIds.Add(bbR1.Id.IntegerValue);
                 if (bbR2 != null) placedIds.Add(bbR2.Id.IntegerValue);
 
-                var lgRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yMax), MmToFt(zH1)), rotDegB, "l", L_first);
-                var lgRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(x2), MmToFt(y2), MmToFt(zH1)), rotDegB, "l", L_first);
-                var trRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH1)), rotDegB - 90, "l", W_B);
-                if (lgRF1 != null) placedIds.Add(lgRF1.Id.IntegerValue);
-                if (lgRF2 != null) placedIds.Add(lgRF2.Id.IntegerValue);
-                if (trRF2 != null) placedIds.Add(trRF2.Id.IntegerValue);
+                ensureCol(xB_back, yB_back);
+                ensureCol(xB_top, yB_top);
+                if (L_A > 10.0)
+                {
+                    ensureCol(xA_top, yA_top);
+                }
+
+                placeTransom(xA_back, yA_back, zH1, rowA.AngleDeg, W_B);
+                placeTransom(xA_top,  yA_top,  zH1, rowA.AngleDeg, W_B);
+                var lgRF_B = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB_back), MmToFt(yB_back), MmToFt(zH1)), rotDegB, "l", L_first);
+                if (lgRF_B != null) placedIds.Add(lgRF_B.Id.IntegerValue);
+                if (L_A > 10.0)
+                {
+                    var lgRF_A = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yMax), MmToFt(zH1)), rotDegB, "l", L_A);
+                    if (lgRF_A != null) placedIds.Add(lgRF_A.Id.IntegerValue);
+                }
 
                 if (opts != null && opts.HasTopTransom)
                 {
-                    var lgTopRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yMax), MmToFt(topZ)), rotDegB, "l", L_first);
-                    var lgTopRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(x2), MmToFt(y2), MmToFt(topZ)), rotDegB, "l", L_first);
-                    var trTopRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(topZ)), rotDegB - 90, "l", W_B);
-                    if (lgTopRF1 != null) placedIds.Add(lgTopRF1.Id.IntegerValue);
-                    if (lgTopRF2 != null) placedIds.Add(lgTopRF2.Id.IntegerValue);
-                    if (trTopRF2 != null) placedIds.Add(trTopRF2.Id.IntegerValue);
+                    placeTransom(xA_back, yA_back, topZ, rowA.AngleDeg, W_B);
+                    placeTransom(xA_top,  yA_top,  topZ, rowA.AngleDeg, W_B);
+                    var lgTopRF_B = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB_back), MmToFt(yB_back), MmToFt(topZ)), rotDegB, "l", L_first);
+                    if (lgTopRF_B != null) placedIds.Add(lgTopRF_B.Id.IntegerValue);
+                    if (L_A > 10.0)
+                    {
+                        var lgTopRF_A = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yMax), MmToFt(topZ)), rotDegB, "l", L_A);
+                        if (lgTopRF_A != null) placedIds.Add(lgTopRF_A.Id.IntegerValue);
+                    }
                 }
 
                 for (int s = 0; s < storyCount; s++)
                 {
                     double sOff = s * 1800.0;
+                    double zH3 = z0 + jackH + 830 + sOff;
                     double zDeck = z0 + jackH + 1730 + sOff;
                     double zH6 = z0 + jackH + 2180 + sOff;
                     double zH7 = z0 + jackH + 2630 + sOff;
 
-                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, x2, y2, rotDegB, L_first, z0, jackH, s, storyCount, opts);
+                    if (L_A > 10.0)
+                    {
+                        var lgRM_A = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yMax), MmToFt(zH3)), rotDegB, "l", L_A);
+                        if (lgRM_A != null) placedIds.Add(lgRM_A.Id.IntegerValue);
+                    }
 
-                    var trRD2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zDeck)), rotDegB - 90, "l", W_B);
-                    if (trRD2 != null) placedIds.Add(trRD2.Id.IntegerValue);
+                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xA_back, yA_back, rowA.AngleDeg, W_B, z0, jackH, s, storyCount, opts);
+                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xB_back, yB_back, rotDegB, L_first, z0, jackH, s, storyCount, opts);
+
+                    placeTransom(xA_back, yA_back, zDeck, rowA.AngleDeg, W_B);
+                    placeTransom(xA_top,  yA_top,  zDeck, rowA.AngleDeg, W_B);
 
                     if (sym6 != null)
                     {
-                        var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xMax + 345 * vBx), MmToFt(yMax + 345 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(x2 - 345 * vBx), MmToFt(y2 - 345 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                        if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                        var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xA_back + pOffB * uAx), MmToFt(yA_back + pOffB * uAy), MmToFt(zDeck)), rotDegB, "l", L_first);
+                        var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xB_back - pOffB * uAx), MmToFt(yB_back - pOffB * uAy), MmToFt(zDeck)), rotDegB, "l", L_first);
+                        if (pl1 != null) { SetParam(pl1, "w", pwB); placedIds.Add(pl1.Id.IntegerValue); }
+                        if (pl2 != null) { SetParam(pl2, "w", pwB); placedIds.Add(pl2.Id.IntegerValue); }
                     }
 
                     if (sym7 != null)
                     {
-                        var tbL = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xMax + 66 * vBx), MmToFt(yMax + 66 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var tbR = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(x2 - 66 * vBx), MmToFt(y2 - 66 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var tbEnd = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zDeck)), rotDegB - 90, "l", W_B);
-                        if (tbL != null) placedIds.Add(tbL.Id.IntegerValue);
-                        if (tbR != null) placedIds.Add(tbR.Id.IntegerValue);
-                        if (tbEnd != null) placedIds.Add(tbEnd.Id.IntegerValue);
+                        var tbBack = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA_back + 66 * uBx), MmToFt(yA_back + 66 * uBy), MmToFt(zDeck)), rowA.AngleDeg, "l", W_B);
+                        var tbEndB = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xB_back - 66 * uAx), MmToFt(yB_back - 66 * uAy), MmToFt(zDeck)), rotDegB, "l", L_first);
+                        if (tbBack != null) placedIds.Add(tbBack.Id.IntegerValue);
+                        if (tbEndB != null) placedIds.Add(tbEndB.Id.IntegerValue);
+
+                        if (closeReturnEnd)
+                        {
+                            var tbTop = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA_top - 66 * uBx), MmToFt(yA_top - 66 * uBy), MmToFt(zDeck)), rowA.AngleDeg, "l", W_B);
+                            if (tbTop != null) placedIds.Add(tbTop.Id.IntegerValue);
+                        }
+
+                        if (L_A > 10.0)
+                        {
+                            var tbInnerA = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xMax + 66 * uAx), MmToFt(yMax + 66 * uAy), MmToFt(zDeck)), rotDegB, "l", L_A);
+                            if (tbInnerA != null) placedIds.Add(tbInnerA.Id.IntegerValue);
+                        }
                     }
 
-                    var rL1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yMax), MmToFt(zH6)), rotDegB, "l", L_first);
-                    var rE1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH6)), rotDegB - 90, "l", W_B);
-                    var rL2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yMax), MmToFt(zH7)), rotDegB, "l", L_first);
-                    var rE2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH7)), rotDegB - 90, "l", W_B);
-                    if (rL1 != null) placedIds.Add(rL1.Id.IntegerValue);
-                    if (rE1 != null) placedIds.Add(rE1.Id.IntegerValue);
-                    if (rL2 != null) placedIds.Add(rL2.Id.IntegerValue);
-                    if (rE2 != null) placedIds.Add(rE2.Id.IntegerValue);
+                    if (closeReturnEnd)
+                    {
+                        var rTop1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA_top), MmToFt(yA_top), MmToFt(zH6)), rowA.AngleDeg, "l", W_B);
+                        var rTop2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA_top), MmToFt(yA_top), MmToFt(zH7)), rowA.AngleDeg, "l", W_B);
+                        if (rTop1 != null) placedIds.Add(rTop1.Id.IntegerValue);
+                        if (rTop2 != null) placedIds.Add(rTop2.Id.IntegerValue);
+                    }
+
+                    if (L_A > 10.0)
+                    {
+                        var rA_1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yMax), MmToFt(zH6)), rotDegB, "l", L_A);
+                        var rA_2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax), MmToFt(yMax), MmToFt(zH7)), rotDegB, "l", L_A);
+                        if (rA_1 != null) placedIds.Add(rA_1.Id.IntegerValue);
+                        if (rA_2 != null) placedIds.Add(rA_2.Id.IntegerValue);
+                    }
                 }
             }
         }
 
         /// <summary>
-        /// TH 2.2: Khớp nối góc 90° - Vươn ra ngoài hướng ngược lại (Outer Protrusion -Y).
-        /// Kế thừa 100% cấu kiện ExecuteCase2_2.
+        /// TH 2.2: Khớp nối góc 90° - Vươn ra ngoài hướng ngược lại (Outer Protrusion -Y, Mép trước phẳng).
+        /// Kế thừa 100% cấu kiện ExecuteCase2_2 với mọi kích thước (L_last, L_first, W_A, W_B).
         /// </summary>
         private static void ConnectCorner_TH2_2(Document doc, BayRowModel rowA, BayRowModel rowB, BuildOptions opts, Level level,
             List<int> placedIds, Action<double, double> ensureCol, Action<double, double, double, double, double> placeTransom,
@@ -2246,8 +1695,12 @@ namespace RevitScaffoldingTool
 
             double W_A = rowA.Width > 0 ? rowA.Width : 1200.0;
             double W_B = (rowB != null && rowB.Width > 0) ? rowB.Width : (rowA.Width > 0 ? rowA.Width : 1200.0);
+            double pwA = GetPlankWidth(W_A), pOffA = GetPlankOffset(W_A);
+            double pwB = GetPlankWidth(W_B), pOffB = GetPlankOffset(W_B);
+
             double L_last = (rowA.BayLengths != null && rowA.BayLengths.Count > 0) ? rowA.BayLengths.Last() : 1800.0;
             double L_first = (rowB != null && rowB.BayLengths != null && rowB.BayLengths.Count > 0) ? rowB.BayLengths.First() : 1800.0;
+            double L_A = (L_first > W_A + 10.0) ? (L_first - W_A) : 0.0;
 
             double angRadA = rowA.AngleDeg * Math.PI / 180.0;
             double uAx = Math.Cos(angRadA), uAy = Math.Sin(angRadA);
@@ -2259,22 +1712,38 @@ namespace RevitScaffoldingTool
             double yLast = rowA.StartY + dStartLast * uAy;
             double xMax = xLast + L_last * uAx;
             double yMax = yLast + L_last * uAy;
+            double xBack = xLast + W_A * vAx;
+            double yBack = yLast + W_A * vAy;
+            double xA_back = xMax + W_A * vAx;
+            double yA_back = yMax + W_A * vAy;
 
             ensureCol(xLast, yLast);
             ensureCol(xMax, yMax);
-            ensureCol(xLast + W_A * vAx, yLast + W_A * vAy);
-            ensureCol(xMax + W_A * vAx, yMax + W_A * vAy);
+            ensureCol(xBack, yBack);
+            ensureCol(xA_back, yA_back);
 
-            // Dãy A nhịp cuối
+            double zH1 = z0 + jackH + 135;
+            placeTransom(xLast, yLast, zH1, rowA.AngleDeg - 90, W_A);
+            placeTransom(xMax, yMax, zH1, rowA.AngleDeg - 90, W_A);
+            if (opts != null && opts.HasTopTransom)
+            {
+                placeTransom(xLast, yLast, topZ, rowA.AngleDeg - 90, W_A);
+                placeTransom(xMax, yMax, topZ, rowA.AngleDeg - 90, W_A);
+            }
+            for (int s = 0; s < storyCount; s++)
+            {
+                double sDeck = z0 + jackH + 1730 + s * 1800.0;
+                placeTransom(xLast, yLast, sDeck, rowA.AngleDeg - 90, W_A);
+                placeTransom(xMax, yMax, sDeck, rowA.AngleDeg - 90, W_A);
+            }
+
+            // 1. Dãy A nhịp cuối
             var bbFront = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xLast), MmToFt(yLast), MmToFt(z0)), rowA.AngleDeg, "l", L_last);
             if (bbFront != null) placedIds.Add(bbFront.Id.IntegerValue);
 
-            double zH1 = z0 + jackH + 135;
             var lgFFront = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLast), MmToFt(yLast), MmToFt(zH1)), rowA.AngleDeg, "l", L_last);
             if (lgFFront != null) placedIds.Add(lgFFront.Id.IntegerValue);
 
-            double xBack = xLast + W_A * vAx;
-            double yBack = yLast + W_A * vAy;
             var bbBack = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xBack), MmToFt(yBack), MmToFt(z0)), rowA.AngleDeg, "l", L_last);
             var lgFBack = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xBack), MmToFt(yBack), MmToFt(zH1)), rowA.AngleDeg, "l", L_last);
             if (bbBack != null) placedIds.Add(bbBack.Id.IntegerValue);
@@ -2307,10 +1776,10 @@ namespace RevitScaffoldingTool
 
                 if (sym6 != null)
                 {
-                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xLast + 345 * vAx), MmToFt(yLast + 345 * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
-                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xBack - 345 * vAx), MmToFt(yBack - 345 * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
-                    if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                    if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xLast + pOffA * vAx), MmToFt(yLast + pOffA * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
+                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xBack - pOffA * vAx), MmToFt(yBack - pOffA * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", L_last);
+                    if (pl1 != null) { SetParam(pl1, "w", pwA); placedIds.Add(pl1.Id.IntegerValue); }
+                    if (pl2 != null) { SetParam(pl2, "w", pwA); placedIds.Add(pl2.Id.IntegerValue); }
                 }
 
                 if (sym7 != null)
@@ -2322,102 +1791,129 @@ namespace RevitScaffoldingTool
                 }
             }
 
-            // Shared Transom tại cửa ngõ vươn sang Row B
-            double xMax_back = xMax + W_A * vAx;
-            double yMax_back = yMax + W_A * vAy;
-            double rotReturn = (rowB != null) ? (rowB.AngleDeg - 90) : (rowA.AngleDeg);
-            placeTransom(xMax_back, yMax_back, zH1, rotReturn, W_B);
-
-            if (opts != null && opts.HasTopTransom)
-            {
-                placeTransom(xMax_back, yMax_back, topZ, rotReturn, W_B);
-            }
-
-            for (int s = 0; s < storyCount; s++)
-            {
-                double sDeck = z0 + jackH + 1730 + s * 1800.0;
-                placeTransom(xMax_back, yMax_back, sDeck, rotReturn, W_B);
-            }
-
-            // Standalone return branch
+            // 2. PHẦN B: NHÁNH RẼ NGOÀI TH 2.2 (MÉP TRƯỚC PHẲNG: L_first x W_B)
             if (isStandalone)
             {
-                double angRadB = (rowB != null) ? (rowB.AngleDeg * Math.PI / 180.0) : (angRadA - Math.PI / 2.0);
-                double rotDegB = (rowB != null) ? rowB.AngleDeg : (rowA.AngleDeg - 90.0);
-                double uBx = Math.Cos(angRadB), uBy = Math.Sin(angRadB);
-                double vBx = Math.Sin(angRadB), vBy = -Math.Cos(angRadB);
+                double rotUp = rowA.AngleDeg + 90.0; // Hướng từ yBot lên yFront (-vA)
+                bool closeReturnEnd = (rowB == null || rowB.BayLengths == null || rowB.BayLengths.Count <= 1);
 
-                double xTop1 = xMax_back + L_first * uBx;
-                double yTop1 = yMax_back + L_first * uBy;
-                double x2 = xMax_back + W_B * vBx;
-                double y2 = yMax_back + W_B * vBy;
-                double xTop2 = x2 + L_first * uBx;
-                double yTop2 = y2 + L_first * uBy;
+                double xA_front = xMax;
+                double yA_front = yMax;
+                double xB_front = xA_front + W_B * uAx;
+                double yB_front = yA_front + W_B * uAy;
+                double xA_bot = xA_front + L_first * vAx;
+                double yA_bot = yA_front + L_first * vAy;
+                double xB_bot = xB_front + L_first * vAx;
+                double yB_bot = yB_front + L_first * vAy;
 
-                ensureCol(x2, y2);
-                ensureCol(xTop1, yTop1);
-                ensureCol(xTop2, yTop2);
-
-                var bbR1 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xMax_back), MmToFt(yMax_back), MmToFt(z0)), rotDegB, "l", L_first);
-                var bbR2 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(x2), MmToFt(y2), MmToFt(z0)), rotDegB, "l", L_first);
+                var bbR1 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xA_bot),   MmToFt(yA_bot),   MmToFt(z0)), rowA.AngleDeg, "l", W_B);
+                var bbR2 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xA_front), MmToFt(yA_front), MmToFt(z0)), rowA.AngleDeg, "l", W_B);
                 if (bbR1 != null) placedIds.Add(bbR1.Id.IntegerValue);
                 if (bbR2 != null) placedIds.Add(bbR2.Id.IntegerValue);
 
-                var lgRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax_back), MmToFt(yMax_back), MmToFt(zH1)), rotDegB, "l", L_first);
-                var lgRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(x2), MmToFt(y2), MmToFt(zH1)), rotDegB, "l", L_first);
-                var trRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH1)), rotDegB - 90, "l", W_B);
-                if (lgRF1 != null) placedIds.Add(lgRF1.Id.IntegerValue);
-                if (lgRF2 != null) placedIds.Add(lgRF2.Id.IntegerValue);
-                if (trRF2 != null) placedIds.Add(trRF2.Id.IntegerValue);
+                ensureCol(xB_front, yB_front);
+                ensureCol(xB_bot, yB_bot);
+                if (L_A > 10.0)
+                {
+                    ensureCol(xA_bot, yA_bot);
+                }
+
+                placeTransom(xA_front, yA_front, zH1, rowA.AngleDeg, W_B);
+                placeTransom(xA_bot,   yA_bot,   zH1, rowA.AngleDeg, W_B);
+                var lgRF_B = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB_bot), MmToFt(yB_bot), MmToFt(zH1)), rotUp, "l", L_first);
+                if (lgRF_B != null) placedIds.Add(lgRF_B.Id.IntegerValue);
+                if (L_A > 10.0)
+                {
+                    var lgRF_A = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA_bot), MmToFt(yA_bot), MmToFt(zH1)), rotUp, "l", L_A);
+                    if (lgRF_A != null) placedIds.Add(lgRF_A.Id.IntegerValue);
+                }
 
                 if (opts != null && opts.HasTopTransom)
                 {
-                    var lgTopRF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax_back), MmToFt(yMax_back), MmToFt(topZ)), rotDegB, "l", L_first);
-                    var lgTopRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(x2), MmToFt(y2), MmToFt(topZ)), rotDegB, "l", L_first);
-                    var trTopRF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(topZ)), rotDegB - 90, "l", W_B);
-                    if (lgTopRF1 != null) placedIds.Add(lgTopRF1.Id.IntegerValue);
-                    if (lgTopRF2 != null) placedIds.Add(lgTopRF2.Id.IntegerValue);
-                    if (trTopRF2 != null) placedIds.Add(trTopRF2.Id.IntegerValue);
+                    placeTransom(xA_front, yA_front, topZ, rowA.AngleDeg, W_B);
+                    placeTransom(xA_bot,   yA_bot,   topZ, rowA.AngleDeg, W_B);
+                    var lgTopRF_B = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB_bot), MmToFt(yB_bot), MmToFt(topZ)), rotUp, "l", L_first);
+                    if (lgTopRF_B != null) placedIds.Add(lgTopRF_B.Id.IntegerValue);
+                    if (L_A > 10.0)
+                    {
+                        var lgTopRF_A = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA_bot), MmToFt(yA_bot), MmToFt(topZ)), rotUp, "l", L_A);
+                        if (lgTopRF_A != null) placedIds.Add(lgTopRF_A.Id.IntegerValue);
+                    }
                 }
 
                 for (int s = 0; s < storyCount; s++)
                 {
                     double sOff = s * 1800.0;
+                    double zH3 = z0 + jackH + 830 + sOff;
                     double zDeck = z0 + jackH + 1730 + sOff;
                     double zH6 = z0 + jackH + 2180 + sOff;
                     double zH7 = z0 + jackH + 2630 + sOff;
 
-                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, x2, y2, rotDegB, L_first, z0, jackH, s, storyCount, opts);
+                    var lgRM_Front = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA_front), MmToFt(yA_front), MmToFt(zH3)), rowA.AngleDeg, "l", W_B);
+                    var lgRM_Bot   = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA_bot),   MmToFt(yA_bot),   MmToFt(zH3)), rowA.AngleDeg, "l", W_B);
+                    var lgRM_EndB  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB_bot),   MmToFt(yB_bot),   MmToFt(zH3)), rotUp, "l", L_first);
+                    if (lgRM_Front != null) placedIds.Add(lgRM_Front.Id.IntegerValue);
+                    if (lgRM_Bot   != null) placedIds.Add(lgRM_Bot.Id.IntegerValue);
+                    if (lgRM_EndB  != null) placedIds.Add(lgRM_EndB.Id.IntegerValue);
 
-                    var trRD2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zDeck)), rotDegB - 90, "l", W_B);
-                    if (trRD2 != null) placedIds.Add(trRD2.Id.IntegerValue);
+                    if (L_A > 10.0)
+                    {
+                        PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xA_bot, yA_bot, rotUp, L_A, z0, jackH, s, storyCount, opts);
+                    }
+
+                    placeTransom(xA_front, yA_front, zDeck, rowA.AngleDeg, W_B);
+                    placeTransom(xA_bot,   yA_bot,   zDeck, rowA.AngleDeg, W_B);
 
                     if (sym6 != null)
                     {
-                        var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xMax_back + 345 * vBx), MmToFt(yMax_back + 345 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(x2 - 345 * vBx), MmToFt(y2 - 345 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
-                        if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                        var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xA_bot + pOffB * uAx), MmToFt(yA_bot + pOffB * uAy), MmToFt(zDeck)), rotUp, "l", L_first);
+                        var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xB_bot - pOffB * uAx), MmToFt(yB_bot - pOffB * uAy), MmToFt(zDeck)), rotUp, "l", L_first);
+                        if (pl1 != null) { SetParam(pl1, "w", pwB); placedIds.Add(pl1.Id.IntegerValue); }
+                        if (pl2 != null) { SetParam(pl2, "w", pwB); placedIds.Add(pl2.Id.IntegerValue); }
                     }
 
                     if (sym7 != null)
                     {
-                        var tbL = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xMax_back + 66 * vBx), MmToFt(yMax_back + 66 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var tbR = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(x2 - 66 * vBx), MmToFt(y2 - 66 * vBy), MmToFt(zDeck)), rotDegB, "l", L_first);
-                        var tbEnd = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zDeck)), rotDegB - 90, "l", W_B);
-                        if (tbL != null) placedIds.Add(tbL.Id.IntegerValue);
-                        if (tbR != null) placedIds.Add(tbR.Id.IntegerValue);
-                        if (tbEnd != null) placedIds.Add(tbEnd.Id.IntegerValue);
+                        var tbFront = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA_front + 66 * vAx), MmToFt(yA_front + 66 * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", W_B);
+                        var tbEndB  = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xB_bot - 66 * uAx),   MmToFt(yB_bot - 66 * uAy),   MmToFt(zDeck)), rotUp, "l", L_first);
+                        if (tbFront != null) placedIds.Add(tbFront.Id.IntegerValue);
+                        if (tbEndB  != null) placedIds.Add(tbEndB.Id.IntegerValue);
+
+                        if (closeReturnEnd)
+                        {
+                            var tbBot = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA_bot - 66 * vAx), MmToFt(yA_bot - 66 * vAy), MmToFt(zDeck)), rowA.AngleDeg, "l", W_B);
+                            if (tbBot != null) placedIds.Add(tbBot.Id.IntegerValue);
+                        }
+
+                        if (L_A > 10.0)
+                        {
+                            var tbInnerA = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA_bot + 66 * uAx), MmToFt(yA_bot + 66 * uAy), MmToFt(zDeck)), rotUp, "l", L_A);
+                            if (tbInnerA != null) placedIds.Add(tbInnerA.Id.IntegerValue);
+                        }
                     }
 
-                    var rL1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax_back), MmToFt(yMax_back), MmToFt(zH6)), rotDegB, "l", L_first);
-                    var rE1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH6)), rotDegB - 90, "l", W_B);
-                    var rL2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xMax_back), MmToFt(yMax_back), MmToFt(zH7)), rotDegB, "l", L_first);
-                    var rE2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xTop1), MmToFt(yTop1), MmToFt(zH7)), rotDegB - 90, "l", W_B);
-                    if (rL1 != null) placedIds.Add(rL1.Id.IntegerValue);
-                    if (rE1 != null) placedIds.Add(rE1.Id.IntegerValue);
-                    if (rL2 != null) placedIds.Add(rL2.Id.IntegerValue);
-                    if (rE2 != null) placedIds.Add(rE2.Id.IntegerValue);
+                    var rFront1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA_front), MmToFt(yA_front), MmToFt(zH6)), rowA.AngleDeg, "l", W_B);
+                    var rFront2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA_front), MmToFt(yA_front), MmToFt(zH7)), rowA.AngleDeg, "l", W_B);
+                    var rEnd1   = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB_bot),   MmToFt(yB_bot),   MmToFt(zH6)), rotUp, "l", L_first);
+                    var rEnd2   = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB_bot),   MmToFt(yB_bot),   MmToFt(zH7)), rotUp, "l", L_first);
+                    if (rFront1 != null) placedIds.Add(rFront1.Id.IntegerValue);
+                    if (rFront2 != null) placedIds.Add(rFront2.Id.IntegerValue);
+                    if (rEnd1   != null) placedIds.Add(rEnd1.Id.IntegerValue);
+                    if (rEnd2   != null) placedIds.Add(rEnd2.Id.IntegerValue);
+
+                    if (closeReturnEnd)
+                    {
+                        var rBot1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA_bot), MmToFt(yA_bot), MmToFt(zH6)), rowA.AngleDeg, "l", W_B);
+                        var rBot2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA_bot), MmToFt(yA_bot), MmToFt(zH7)), rowA.AngleDeg, "l", W_B);
+                        if (rBot1 != null) placedIds.Add(rBot1.Id.IntegerValue);
+                        if (rBot2 != null) placedIds.Add(rBot2.Id.IntegerValue);
+                    }
+
+                    if (L_A > 10.0)
+                    {
+                        var rA_2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA_bot), MmToFt(yA_bot), MmToFt(zH7)), rotUp, "l", L_A);
+                        if (rA_2 != null) placedIds.Add(rA_2.Id.IntegerValue);
+                    }
                 }
             }
         }

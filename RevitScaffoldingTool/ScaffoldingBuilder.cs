@@ -332,15 +332,17 @@ namespace RevitScaffoldingTool
                     if (railFrontTop != null) placedIds.Add(railFrontTop.Id.IntegerValue);
                 }
 
-                // Mâm thao tác Family 6 tại tầng sàn s
+                // Mâm thao tác Family 6 tại tầng sàn s (tự động co giãn theo W)
                 if (sym6 != null)
                 {
                     double zDeck = z0 + jackH + 1730 + sOff;
-                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(px), MmToFt(y0 - 345), MmToFt(zDeck)), 0, "l", L_i);
-                    if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
+                    double pw = GetPlankWidth(W);
+                    double pOff = GetPlankOffset(W);
+                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(px), MmToFt(y0 - pOff), MmToFt(zDeck)), 0, "l", L_i);
+                    if (pl1 != null) { SetParam(pl1, "w", pw); placedIds.Add(pl1.Id.IntegerValue); }
 
-                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(px), MmToFt(y0 - W + 345), MmToFt(zDeck)), 0, "l", L_i);
-                    if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(px), MmToFt(y0 - W + pOff), MmToFt(zDeck)), 0, "l", L_i);
+                    if (pl2 != null) { SetParam(pl2, "w", pw); placedIds.Add(pl2.Id.IntegerValue); }
                 }
 
                 // Ván chắn biên Family 7 tại tầng sàn s
@@ -356,6 +358,18 @@ namespace RevitScaffoldingTool
                     if (tbBack != null) placedIds.Add(tbBack.Id.IntegerValue);
                 }
             }
+        }
+
+        public static double GetPlankWidth(double bayWidth)
+        {
+            double w = bayWidth > 0 ? bayWidth : 1200.0;
+            return Math.Max(150.0, (w - 200.0) / 2.0);
+        }
+
+        public static double GetPlankOffset(double bayWidth)
+        {
+            double pw = GetPlankWidth(bayWidth);
+            return 95.0 + pw / 2.0;
         }
 
         private static void ConfigureAlinco2700(FamilyInstance inst)

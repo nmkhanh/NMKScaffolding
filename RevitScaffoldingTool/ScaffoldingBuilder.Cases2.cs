@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 
@@ -68,19 +68,24 @@ namespace RevitScaffoldingTool
             double yTop = yBack + L2;
             double L_ret = L2;
             double W_ret = W;
-            double L_A = Math.Max(0, yTop - yFront);
+            double L_A = (yTop - yFront > 10.0) ? (yTop - yFront) : 0.0;
+            double pw = GetPlankWidth(W_ret);
+            double pOff = GetPlankOffset(W_ret);
 
             var bbR1 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xA), MmToFt(yBack), MmToFt(z0)), 0, "l", W_ret);
             var bbR2 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xA), MmToFt(yTop),  MmToFt(z0)), 0, "l", W_ret);
             if (bbR1 != null) placedIds.Add(bbR1.Id.IntegerValue);
             if (bbR2 != null) placedIds.Add(bbR2.Id.IntegerValue);
 
-            XYZ[] retPts = new XYZ[]
+            List<XYZ> retPts = new List<XYZ>
             {
                 new XYZ(MmToFt(xB), MmToFt(yBack), MmToFt(z0)),
-                new XYZ(MmToFt(xB), MmToFt(yTop),  MmToFt(z0)),
-                new XYZ(MmToFt(xA), MmToFt(yTop),  MmToFt(z0))
+                new XYZ(MmToFt(xB), MmToFt(yTop),  MmToFt(z0))
             };
+            if (L_A > 10.0)
+            {
+                retPts.Add(new XYZ(MmToFt(xA), MmToFt(yTop), MmToFt(z0)));
+            }
             foreach (var pt in retPts)
             {
                 var jk = PlaceInstance(doc, sym2, level, pt, 0, "h", jackH);
@@ -89,28 +94,37 @@ namespace RevitScaffoldingTool
 
             PlaceConfiguredPosts(doc, sym3, level, placedIds, xB, yBack, z0 + jackH, opts);
             PlaceConfiguredPosts(doc, sym3, level, placedIds, xB, yTop,  z0 + jackH, opts);
-            PlaceConfiguredPosts(doc, sym3, level, placedIds, xA, yTop,  z0 + jackH, opts);
+            if (L_A > 10.0)
+            {
+                PlaceConfiguredPosts(doc, sym3, level, placedIds, xA, yTop, z0 + jackH, opts);
+            }
 
             double zH1_R = z0 + jackH + 135;
             var trRF_Back = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBack), MmToFt(zH1_R)), 0, "l", W_ret);
             var trRF_Top  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yTop),  MmToFt(zH1_R)), 0, "l", W_ret);
             var lgRF_B    = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBack), MmToFt(zH1_R)), 90, "l", L_ret);
-            var lgRF_A    = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH1_R)), 90, "l", L_A);
             if (trRF_Back != null) placedIds.Add(trRF_Back.Id.IntegerValue);
             if (trRF_Top  != null) placedIds.Add(trRF_Top.Id.IntegerValue);
             if (lgRF_B    != null) placedIds.Add(lgRF_B.Id.IntegerValue);
-            if (lgRF_A    != null) placedIds.Add(lgRF_A.Id.IntegerValue);
+            if (L_A > 10.0)
+            {
+                var lgRF_A = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH1_R)), 90, "l", L_A);
+                if (lgRF_A != null) placedIds.Add(lgRF_A.Id.IntegerValue);
+            }
 
             if (opts != null && opts.HasTopTransom)
             {
                 var trTopRF_Back = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBack), MmToFt(topZ)), 0, "l", W_ret);
                 var trTopRF_Top  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yTop),  MmToFt(topZ)), 0, "l", W_ret);
                 var lgTopRF_B    = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBack), MmToFt(topZ)), 90, "l", L_ret);
-                var lgTopRF_A    = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(topZ)), 90, "l", L_A);
                 if (trTopRF_Back != null) placedIds.Add(trTopRF_Back.Id.IntegerValue);
                 if (trTopRF_Top  != null) placedIds.Add(trTopRF_Top.Id.IntegerValue);
                 if (lgTopRF_B    != null) placedIds.Add(lgTopRF_B.Id.IntegerValue);
-                if (lgTopRF_A    != null) placedIds.Add(lgTopRF_A.Id.IntegerValue);
+                if (L_A > 10.0)
+                {
+                    var lgTopRF_A = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(topZ)), 90, "l", L_A);
+                    if (lgTopRF_A != null) placedIds.Add(lgTopRF_A.Id.IntegerValue);
+                }
             }
 
             for (int s = 0; s < storyCount; s++)
@@ -118,15 +132,18 @@ namespace RevitScaffoldingTool
                 double sOff = s * 1800.0;
                 double zH3_R = z0 + jackH + 830 + sOff;
 
-                // 1. Giằng dọc trong: Vách trong giật cấp X = 7800 (Y: 0 -> +600, L = 600)
-                var lgRM_A = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH3_R)), 90, "l", 600);
-                if (lgRM_A != null) placedIds.Add(lgRM_A.Id.IntegerValue);
+                // 1. Giằng dọc trong: Vách trong giật cấp X = xA (Y: yFront -> yTop, L = L_A)
+                if (L_A > 10.0)
+                {
+                    var lgRM_A = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH3_R)), 90, "l", L_A);
+                    if (lgRM_A != null) placedIds.Add(lgRM_A.Id.IntegerValue);
+                }
 
                 // 2. Giằng chéo Family 5:
-                // - Giằng chéo đầu dưới cùng Y = -1200 (X: 7800 -> 9000, L = 1200)
+                // - Giằng chéo đầu dưới cùng Y = yBack (X: xA -> xB, L = W_ret)
                 PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xA, yBack, 0, W_ret, z0, jackH, s, storyCount, opts);
 
-                // - Giằng chéo ngoài: Mép ngoài bên phải X = 9000 (Y: -1200 -> +600, L = 1800)
+                // - Giằng chéo ngoài: Mép ngoài bên phải X = xB (Y: yBack -> yTop, L = L_ret)
                 PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xB, yBack, 90, L_ret, z0, jackH, s, storyCount, opts);
 
                 // 3. Giằng đỡ mâm tại zDeck:
@@ -136,51 +153,57 @@ namespace RevitScaffoldingTool
                 if (trRD_Back != null) placedIds.Add(trRD_Back.Id.IntegerValue);
                 if (trRD_Top  != null) placedIds.Add(trRD_Top.Id.IntegerValue);
 
-                // 4. Mâm sàn thao tác Family 6 (L = 1800 mm theo phương Y):
+                // 4. Mâm sàn thao tác Family 6 (L = L_ret mm theo phương Y):
                 if (sym6 != null)
                 {
-                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xA + 345), MmToFt(yBack), MmToFt(zDeck_R)), 90, "l", L_ret);
-                    if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
+                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xA + pOff), MmToFt(yBack), MmToFt(zDeck_R)), 90, "l", L_ret);
+                    if (pl1 != null) { SetParam(pl1, "w", pw); placedIds.Add(pl1.Id.IntegerValue); }
 
-                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xB - 345), MmToFt(yBack), MmToFt(zDeck_R)), 90, "l", L_ret);
-                    if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xB - pOff), MmToFt(yBack), MmToFt(zDeck_R)), 90, "l", L_ret);
+                    if (pl2 != null) { SetParam(pl2, "w", pw); placedIds.Add(pl2.Id.IntegerValue); }
                 }
 
                 // 5. Ván chắn biên Family 7 (Đầy đủ 4 mặt bao quanh sàn mâm):
                 if (sym7 != null)
                 {
-                    // - Mép sau / đầu dưới cùng Y = -1200 (L = 1200)
+                    // - Mép sau / đầu dưới cùng Y = yBack (L = W_ret)
                     var tbBack = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA), MmToFt(yBack + 66), MmToFt(zDeck_R)), 0, "l", W_ret);
                     if (tbBack != null) placedIds.Add(tbBack.Id.IntegerValue);
 
-                    // - Đầu hồi ngoài cùng đỉnh Y = +600 (L = 1200)
+                    // - Đầu hồi ngoài cùng đỉnh Y = yTop (L = W_ret)
                     var tbTop  = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA), MmToFt(yTop - 66),  MmToFt(zDeck_R)), 0, "l", W_ret);
                     if (tbTop != null) placedIds.Add(tbTop.Id.IntegerValue);
 
-                    // - Mép ngoài bên phải X = 9000 (L = 1800)
+                    // - Mép ngoài bên phải X = xB (L = L_ret)
                     var tbEndB = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xB - 66), MmToFt(yBack), MmToFt(zDeck_R)), 90, "l", L_ret);
                     if (tbEndB != null) placedIds.Add(tbEndB.Id.IntegerValue);
 
-                    // - Vách trong giật cấp X = 7800 (Y: 0 -> +600, L = 600)
-                    var tbInnerA = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA + 66), MmToFt(yFront), MmToFt(zDeck_R)), 90, "l", L_A);
-                    if (tbInnerA != null) placedIds.Add(tbInnerA.Id.IntegerValue);
+                    // - Vách trong giật cấp X = xA (Y: yFront -> yTop, L = L_A)
+                    if (L_A > 10.0)
+                    {
+                        var tbInnerA = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA + 66), MmToFt(yFront), MmToFt(zDeck_R)), 90, "l", L_A);
+                        if (tbInnerA != null) placedIds.Add(tbInnerA.Id.IntegerValue);
+                    }
                 }
 
                 // 6. Lan can an toàn (h6 và h7):
                 double zH6_R = z0 + jackH + 2180 + sOff;
                 double zH7_R = z0 + jackH + 2630 + sOff;
 
-                // - Đầu hồi ngoài cùng đỉnh Y = +600 (L = 1200): Lan can kép đầy đủ h6 và h7
+                // - Đầu hồi ngoài cùng đỉnh Y = yTop (L = W_ret): Lan can kép đầy đủ h6 và h7
                 var rTop1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yTop),  MmToFt(zH6_R)), 0, "l", W_ret);
                 var rTop2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yTop),  MmToFt(zH7_R)), 0, "l", W_ret);
                 if (rTop1 != null) placedIds.Add(rTop1.Id.IntegerValue);
                 if (rTop2 != null) placedIds.Add(rTop2.Id.IntegerValue);
 
-                // - Giằng dọc trong: Vách trong giật cấp X = 7800 (Y: 0 -> +600, L = 600) có đầy đủ lan can kép h6 và h7
-                var rA_1  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH6_R)), 90, "l", L_A);
-                var rA_2  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH7_R)), 90, "l", L_A);
-                if (rA_1 != null) placedIds.Add(rA_1.Id.IntegerValue);
-                if (rA_2 != null) placedIds.Add(rA_2.Id.IntegerValue);
+                // - Giằng dọc trong: Vách trong giật cấp X = xA (Y: yFront -> yTop, L = L_A) có đầy đủ lan can kép h6 và h7
+                if (L_A > 10.0)
+                {
+                    var rA_1  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH6_R)), 90, "l", L_A);
+                    var rA_2  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH7_R)), 90, "l", L_A);
+                    if (rA_1 != null) placedIds.Add(rA_1.Id.IntegerValue);
+                    if (rA_2 != null) placedIds.Add(rA_2.Id.IntegerValue);
+                }
             }
 
             return null;
@@ -248,19 +271,24 @@ namespace RevitScaffoldingTool
             double yBot   = yFront - L2;
             double L_ret  = L2;
             double W_ret  = W;
-            double L_A = Math.Max(0, yBack - yBot);
+            double L_A = (yBack - yBot > 10.0) ? (yBack - yBot) : 0.0;
+            double pw = GetPlankWidth(W_ret);
+            double pOff = GetPlankOffset(W_ret);
 
             var bbR1 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(z0)), 0, "l", W_ret);
             var bbR2 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(z0)), 0, "l", W_ret);
             if (bbR1 != null) placedIds.Add(bbR1.Id.IntegerValue);
             if (bbR2 != null) placedIds.Add(bbR2.Id.IntegerValue);
 
-            XYZ[] retPts = new XYZ[]
+            List<XYZ> retPts = new List<XYZ>
             {
                 new XYZ(MmToFt(xB), MmToFt(yFront), MmToFt(z0)),
-                new XYZ(MmToFt(xB), MmToFt(yBot),   MmToFt(z0)),
-                new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(z0))
+                new XYZ(MmToFt(xB), MmToFt(yBot),   MmToFt(z0))
             };
+            if (L_A > 10.0)
+            {
+                retPts.Add(new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(z0)));
+            }
             foreach (var pt in retPts)
             {
                 var jk = PlaceInstance(doc, sym2, level, pt, 0, "h", jackH);
@@ -269,28 +297,37 @@ namespace RevitScaffoldingTool
 
             PlaceConfiguredPosts(doc, sym3, level, placedIds, xB, yFront, z0 + jackH, opts);
             PlaceConfiguredPosts(doc, sym3, level, placedIds, xB, yBot,   z0 + jackH, opts);
-            PlaceConfiguredPosts(doc, sym3, level, placedIds, xA, yBot,   z0 + jackH, opts);
+            if (L_A > 10.0)
+            {
+                PlaceConfiguredPosts(doc, sym3, level, placedIds, xA, yBot, z0 + jackH, opts);
+            }
 
             double zH1_R = z0 + jackH + 135;
             var trRF_Front = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH1_R)), 0, "l", W_ret);
             var trRF_Bot   = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(zH1_R)), 0, "l", W_ret);
             var lgRF_B     = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBot),   MmToFt(zH1_R)), 90, "l", L_ret);
-            var lgRF_A     = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(zH1_R)), 90, "l", L_A);
             if (trRF_Front != null) placedIds.Add(trRF_Front.Id.IntegerValue);
             if (trRF_Bot   != null) placedIds.Add(trRF_Bot.Id.IntegerValue);
             if (lgRF_B     != null) placedIds.Add(lgRF_B.Id.IntegerValue);
-            if (lgRF_A     != null) placedIds.Add(lgRF_A.Id.IntegerValue);
+            if (L_A > 10.0)
+            {
+                var lgRF_A = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH1_R)), 90, "l", L_A);
+                if (lgRF_A != null) placedIds.Add(lgRF_A.Id.IntegerValue);
+            }
 
             if (opts != null && opts.HasTopTransom)
             {
                 var trTopRF_Front = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(topZ)), 0, "l", W_ret);
                 var trTopRF_Bot   = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(topZ)), 0, "l", W_ret);
                 var lgTopRF_B     = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBot),   MmToFt(topZ)), 90, "l", L_ret);
-                var lgTopRF_A     = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot),   MmToFt(topZ)), 90, "l", L_A);
                 if (trTopRF_Front != null) placedIds.Add(trTopRF_Front.Id.IntegerValue);
                 if (trTopRF_Bot   != null) placedIds.Add(trTopRF_Bot.Id.IntegerValue);
                 if (lgTopRF_B     != null) placedIds.Add(lgTopRF_B.Id.IntegerValue);
-                if (lgTopRF_A     != null) placedIds.Add(lgTopRF_A.Id.IntegerValue);
+                if (L_A > 10.0)
+                {
+                    var lgTopRF_A = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(topZ)), 90, "l", L_A);
+                    if (lgTopRF_A != null) placedIds.Add(lgTopRF_A.Id.IntegerValue);
+                }
             }
 
             for (int s = 0; s < storyCount; s++)
@@ -299,20 +336,23 @@ namespace RevitScaffoldingTool
                 double zH3_R = z0 + jackH + 830 + sOff;
 
                 // 1. Giằng dọc giữa h3:
-                // - Mặt trước Y = 0 (L = 1200)
+                // - Mặt trước Y = yFront (L = W_ret)
                 var lgRM_Front = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH3_R)), 0, "l", W_ret);
                 if (lgRM_Front != null) placedIds.Add(lgRM_Front.Id.IntegerValue);
 
-                // - Giằng dọc cuối: Đầu hồi ngoài cùng đáy Y = -1800 (L = 1200)
+                // - Giằng dọc cuối: Đầu hồi ngoài cùng đáy Y = yBot (L = W_ret)
                 var lgRM_Bot = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH3_R)), 0, "l", W_ret);
                 if (lgRM_Bot != null) placedIds.Add(lgRM_Bot.Id.IntegerValue);
 
-                // - Giằng dọc ngoài: Mép ngoài bên phải X = 9000 (dọc Y từ -1800 -> 0, L = 1800)
+                // - Giằng dọc ngoài: Mép ngoài bên phải X = xB (dọc Y từ yBot -> yFront, L = L_ret)
                 var lgRM_EndB = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBot), MmToFt(zH3_R)), 90, "l", L_ret);
                 if (lgRM_EndB != null) placedIds.Add(lgRM_EndB.Id.IntegerValue);
 
-                // 2. Giằng chéo trong Family 5: Đặt tại vách trong giật cấp X = 7800 (Y: -1800 -> -1200, L = 600)
-                PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xA, yBot, 90, L_A, z0, jackH, s, storyCount, opts);
+                // 2. Giằng chéo trong Family 5: Đặt tại vách trong giật cấp X = xA (Y: yBot -> yBack, L = L_A)
+                if (L_A > 10.0)
+                {
+                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xA, yBot, 90, L_A, z0, jackH, s, storyCount, opts);
+                }
 
                 // 3. Giằng đỡ mâm tại zDeck:
                 double zDeck_R = z0 + jackH + 1730 + sOff;
@@ -321,68 +361,74 @@ namespace RevitScaffoldingTool
                 if (trRD_Front != null) placedIds.Add(trRD_Front.Id.IntegerValue);
                 if (trRD_Bot   != null) placedIds.Add(trRD_Bot.Id.IntegerValue);
 
-                // 4. Mâm sàn thao tác Family 6 (L = 1800 mm theo phương Y):
+                // 4. Mâm sàn thao tác Family 6 (L = L_ret mm theo phương Y):
                 if (sym6 != null)
                 {
-                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xA + 345), MmToFt(yBot), MmToFt(zDeck_R)), 90, "l", L_ret);
-                    if (pl1 != null) { SetParam(pl1, "w", 500); placedIds.Add(pl1.Id.IntegerValue); }
+                    var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xA + pOff), MmToFt(yBot), MmToFt(zDeck_R)), 90, "l", L_ret);
+                    if (pl1 != null) { SetParam(pl1, "w", pw); placedIds.Add(pl1.Id.IntegerValue); }
 
-                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xB - 345), MmToFt(yBot), MmToFt(zDeck_R)), 90, "l", L_ret);
-                    if (pl2 != null) { SetParam(pl2, "w", 500); placedIds.Add(pl2.Id.IntegerValue); }
+                    var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xB - pOff), MmToFt(yBot), MmToFt(zDeck_R)), 90, "l", L_ret);
+                    if (pl2 != null) { SetParam(pl2, "w", pw); placedIds.Add(pl2.Id.IntegerValue); }
                 }
 
                 // 5. Ván chắn biên Family 7 (Đầy đủ 4 mặt bao quanh sàn mâm):
                 if (sym7 != null)
                 {
-                    // - Mặt trước Y = 0 (L = 1200)
+                    // - Mặt trước Y = yFront (L = W_ret)
                     var tbFront = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA), MmToFt(yFront - 66), MmToFt(zDeck_R)), 0, "l", W_ret);
                     if (tbFront != null) placedIds.Add(tbFront.Id.IntegerValue);
 
-                    // - Đầu hồi ngoài cùng đáy Y = -1800 (L = 1200)
+                    // - Đầu hồi ngoài cùng đáy Y = yBot (L = W_ret)
                     var tbBot   = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA), MmToFt(yBot + 66),   MmToFt(zDeck_R)), 0, "l", W_ret);
                     if (tbBot != null) placedIds.Add(tbBot.Id.IntegerValue);
 
-                    // - Mép ngoài bên phải X = 9000 (L = 1800)
+                    // - Mép ngoài bên phải X = xB (L = L_ret)
                     var tbEndB  = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xB - 66), MmToFt(yBot),  MmToFt(zDeck_R)), 90, "l", L_ret);
                     if (tbEndB != null) placedIds.Add(tbEndB.Id.IntegerValue);
 
-                    // - Vách trong giật cấp X = 7800 (Y: -1800 -> -1200, L = 600)
-                    var tbInnerA = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA + 66), MmToFt(yBot), MmToFt(zDeck_R)), 90, "l", L_A);
-                    if (tbInnerA != null) placedIds.Add(tbInnerA.Id.IntegerValue);
+                    // - Vách trong giật cấp X = xA (Y: yBot -> yBack, L = L_A)
+                    if (L_A > 10.0)
+                    {
+                        var tbInnerA = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xA + 66), MmToFt(yBot), MmToFt(zDeck_R)), 90, "l", L_A);
+                        if (tbInnerA != null) placedIds.Add(tbInnerA.Id.IntegerValue);
+                    }
                 }
 
                 // 6. Lan can an toàn kép (h6 và h7):
                 double zH6_R = z0 + jackH + 2180 + sOff;
                 double zH7_R = z0 + jackH + 2630 + sOff;
 
-                // - Mặt trước Y = 0 (L = 1200): Lan can kép đầy đủ h6 và h7
+                // - Mặt trước Y = yFront (L = W_ret): Lan can kép đầy đủ h6 và h7
                 var rFront1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH6_R)), 0, "l", W_ret);
                 var rFront2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yFront), MmToFt(zH7_R)), 0, "l", W_ret);
                 if (rFront1 != null) placedIds.Add(rFront1.Id.IntegerValue);
                 if (rFront2 != null) placedIds.Add(rFront2.Id.IntegerValue);
 
-                // - Giằng dọc cuối: Đầu hồi ngoài cùng đáy Y = -1800 (L = 1200) có đầy đủ lan can kép h6 và h7
+                // - Giằng dọc cuối: Đầu hồi ngoài cùng đáy Y = yBot (L = W_ret) có đầy đủ lan can kép h6 và h7
                 var rBot1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH6_R)), 0, "l", W_ret);
                 var rBot2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH7_R)), 0, "l", W_ret);
                 if (rBot1 != null) placedIds.Add(rBot1.Id.IntegerValue);
                 if (rBot2 != null) placedIds.Add(rBot2.Id.IntegerValue);
 
-                // - Giằng dọc ngoài: Mép ngoài bên phải X = 9000 (L = 1800) có đầy đủ lan can kép h6 và h7
+                // - Giằng dọc ngoài: Mép ngoài bên phải X = xB (L = L_ret) có đầy đủ lan can kép h6 và h7
                 var rEnd1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBot), MmToFt(zH6_R)), 90, "l", L_ret);
                 var rEnd2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBot), MmToFt(zH7_R)), 90, "l", L_ret);
                 if (rEnd1 != null) placedIds.Add(rEnd1.Id.IntegerValue);
                 if (rEnd2 != null) placedIds.Add(rEnd2.Id.IntegerValue);
 
-                // - Vách trong giật cấp X = 7800 (Y: -1800 -> -1200, L = 600): Có tay vịn trên h7 phía trên giằng chéo trong
-                var rA_2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH7_R)), 90, "l", L_A);
-                if (rA_2 != null) placedIds.Add(rA_2.Id.IntegerValue);
+                // - Vách trong giật cấp X = xA (Y: yBot -> yBack, L = L_A): Có tay vịn trên h7 phía trên giằng chéo trong
+                if (L_A > 10.0)
+                {
+                    var rA_2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH7_R)), 90, "l", L_A);
+                    if (rA_2 != null) placedIds.Add(rA_2.Id.IntegerValue);
+                }
             }
 
             return null;
         }
 
         /// <summary>
-        /// DỰNG DÃY NHIỀU NHỊP THẲNG TIÊU CHUẨN
+        /// DỰNG DÃY NHIỀP THẲNG TIÊU CHUẨN
         /// </summary>
         private static string ExecuteMultiBay(Document doc, BuildOptions opts, Level level, List<int> placedIds)
         {
