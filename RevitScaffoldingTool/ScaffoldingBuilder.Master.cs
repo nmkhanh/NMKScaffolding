@@ -943,8 +943,6 @@ namespace RevitScaffoldingTool
                     if (L_A6 > 10.0)
                     {
                         PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xB, yBot6, 0, L_A6, z0, jackH, s, storyCount, opts);
-                        var rIn2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBot6), MmToFt(zH7)), 0, "l", L_A6);
-                        if (rIn2 != null) placedIds.Add(rIn2.Id.IntegerValue);
                     }
 
                     if (sym6 != null)

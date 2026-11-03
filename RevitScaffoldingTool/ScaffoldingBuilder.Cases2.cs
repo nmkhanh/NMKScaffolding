@@ -416,12 +416,6 @@ namespace RevitScaffoldingTool
                 var rEnd2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xB), MmToFt(yBot), MmToFt(zH7_R)), 90, "l", L_ret);
                 if (rEnd1 != null) placedIds.Add(rEnd1.Id.IntegerValue);
                 if (rEnd2 != null) placedIds.Add(rEnd2.Id.IntegerValue);
-
-                if (L_A > 10.0)
-                {
-                    var rA_2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xA), MmToFt(yBot), MmToFt(zH7_R)), 90, "l", L_A);
-                    if (rA_2 != null) placedIds.Add(rA_2.Id.IntegerValue);
-                }
             }
 
             BuildReturnContinuationBaysNegativeY(doc, level, placedIds, sym1, sym2, sym3, sym4, sym5, sym6, sym7,
