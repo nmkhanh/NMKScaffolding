@@ -147,10 +147,10 @@ namespace RevitScaffoldingTool
             // =========================================================================
             // PHẦN B: DỰNG NHỊP RẼ VUÔNG GÓC 90° VƯƠN SANG +Y (1800 x 1200 mm)
             // =========================================================================
-            double xMax = x0 + 1800;
-            double yTop = y0 + 1800;
-            double L_return = 1800;
-            double W_return = 1200;
+            double xMax = x0 + L1;
+            double yTop = y0 + L2;
+            double L_return = L2;
+            double W_return = W;
 
             var bbR1 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xC), MmToFt(y0), MmToFt(z0)), 90, "l", L_return);
             var bbR2 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xMax), MmToFt(y0), MmToFt(z0)), 90, "l", L_return);
