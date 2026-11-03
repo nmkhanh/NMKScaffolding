@@ -1273,6 +1273,24 @@ namespace RevitScaffoldingTool
             int nRows = rows.Count;
             bool lastConnectsToFirst = (nRows >= 2) && (NormalizeConnectCase(rows[nRows - 1].ConnectCase) != "TH 0");
 
+            bool hasAnyInstanceCoords = false;
+            for (int rIdx = 0; rIdx < nRows; rIdx++)
+            {
+                if (rows[rIdx].HasCoords)
+                {
+                    hasAnyInstanceCoords = true;
+                    break;
+                }
+            }
+
+            if (hasAnyInstanceCoords)
+            {
+                return ExecuteTableRunByInstanceCoords(
+                    doc, opts, level, placedIds,
+                    sym1, sym2, sym3, sym4, sym5, sym6, sym7,
+                    rows, z0, W, pw, pOff, jackH, storyCount, topZ, zH1, lastConnectsToFirst);
+            }
+
             double curX = x0;
             double curYBack = y0 - W;
             double curYFront = y0;
@@ -2350,6 +2368,545 @@ namespace RevitScaffoldingTool
                         curDir = LegDir.MinusY;
                         startBayIdx = 1;
                     }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Thực thi Table Run theo đúng tọa độ thực tế (StartX, StartY, AngleDeg) của từng instance Review_DetailLine đã quét trong Revit,
+        /// không bao giờ tự ý kéo về (0, 0).
+        /// </summary>
+        private static string ExecuteTableRunByInstanceCoords(
+            Document doc, BuildOptions opts, Level level, List<int> placedIds,
+            FamilySymbol sym1, FamilySymbol sym2, FamilySymbol sym3, FamilySymbol sym4,
+            FamilySymbol sym5, FamilySymbol sym6, FamilySymbol sym7,
+            List<TableRowOption> rows, double z0, double defaultW, double defaultPw, double defaultPOff,
+            double jackH, int storyCount, double topZ, double zH1, bool lastConnectsToFirst)
+        {
+            int nRows = rows.Count;
+            HashSet<string> placedCols = new HashSet<string>();
+            HashSet<string> placedTransoms = new HashSet<string>();
+            HashSet<string> placedBaseboards = new HashSet<string>();
+
+            Action<double, double> EnsureGlobalCol = (gx, gy) =>
+            {
+                double rx = Math.Round(gx / 10.0) * 10.0;
+                double ry = Math.Round(gy / 10.0) * 10.0;
+                string key = string.Format("{0:F0}_{1:F0}", rx, ry);
+                if (!placedCols.Contains(key))
+                {
+                    placedCols.Add(key);
+                    var jk = PlaceInstance(doc, sym2, level, new XYZ(MmToFt(gx), MmToFt(gy), MmToFt(z0)), 0, "h", jackH);
+                    if (jk != null) placedIds.Add(jk.Id.IntegerValue);
+
+                    PlaceConfiguredPosts(doc, sym3, level, placedIds, gx, gy, z0 + jackH, opts);
+                }
+            };
+
+            Action<double, double, double, double, double, double> PlaceSharedGlobalTransom = (gx, gy, mx, my, gRot, tlen) =>
+            {
+                double rmx = Math.Round(mx / 10.0) * 10.0;
+                double rmy = Math.Round(my / 10.0) * 10.0;
+                string key = string.Format("{0:F0}_{1:F0}", rmx, rmy);
+                if (!placedTransoms.Contains(key))
+                {
+                    placedTransoms.Add(key);
+                    var fFoot = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(gx), MmToFt(gy), MmToFt(zH1)), gRot, "l", tlen);
+                    if (fFoot != null) placedIds.Add(fFoot.Id.IntegerValue);
+
+                    for (int s = 0; s < storyCount; s++)
+                    {
+                        double sDeck = z0 + jackH + 1730.0 + s * 1800.0;
+                        var fDeck = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(gx), MmToFt(gy), MmToFt(sDeck)), gRot, "l", tlen);
+                        if (fDeck != null) placedIds.Add(fDeck.Id.IntegerValue);
+                    }
+
+                    if (opts != null && opts.HasTopTransom)
+                    {
+                        var fTop = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(gx), MmToFt(gy), MmToFt(topZ)), gRot, "l", tlen);
+                        if (fTop != null) placedIds.Add(fTop.Id.IntegerValue);
+                    }
+                }
+            };
+
+            Action<double, double, double, double, double, double> PlaceSharedGlobalBaseboard = (gx, gy, mx, my, gRot, blen) =>
+            {
+                double rmx = Math.Round(mx / 10.0) * 10.0;
+                double rmy = Math.Round(my / 10.0) * 10.0;
+                string key = string.Format("{0:F0}_{1:F0}", rmx, rmy);
+                if (!placedBaseboards.Contains(key))
+                {
+                    placedBaseboards.Add(key);
+                    var bb = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(gx), MmToFt(gy), MmToFt(z0)), gRot, "l", blen);
+                    if (bb != null) placedIds.Add(bb.Id.IntegerValue);
+                }
+            };
+
+            double fallbackOx = opts.X0;
+            double fallbackOy = opts.Y0;
+            double fallbackTheta = 0.0;
+
+            for (int i = 0; i < nRows; i++)
+            {
+                TableRowOption curRow = rows[i];
+                List<double> curBays = (curRow.BayLengths != null && curRow.BayLengths.Count > 0)
+                    ? curRow.BayLengths
+                    : new List<double> { 1800.0 };
+
+                double W = curRow.Width > 0 ? curRow.Width : defaultW;
+                double pw = GetPlankWidth(W);
+                double pOff = GetPlankOffset(W);
+
+                double ox = curRow.HasCoords ? curRow.StartX : fallbackOx;
+                double oy = curRow.HasCoords ? curRow.StartY : fallbackOy;
+                double thetaDeg = curRow.HasCoords ? curRow.AngleDeg : fallbackTheta;
+                double rad = thetaDeg * Math.PI / 180.0;
+                double cosA = Math.Cos(rad);
+                double sinA = Math.Sin(rad);
+
+                string conn = NormalizeConnectCase(curRow.ConnectCase);
+                bool hasConnect = (conn != "TH 0") && (nRows >= 2) && (i < nRows - 1 || lastConnectsToFirst);
+
+                string prevConn = "TH 0";
+                TableRowOption prevRow = null;
+                if (i > 0)
+                {
+                    prevRow = rows[i - 1];
+                    prevConn = NormalizeConnectCase(prevRow.ConnectCase);
+                }
+                else if (lastConnectsToFirst && nRows >= 2)
+                {
+                    prevRow = rows[nRows - 1];
+                    prevConn = NormalizeConnectCase(prevRow.ConnectCase);
+                }
+
+                TableRowOption nextRow = hasConnect ? ((i < nRows - 1) ? rows[i + 1] : rows[0]) : null;
+                double wNext = (nextRow != null && nextRow.Width > 0) ? nextRow.Width : W;
+                double wPrev = (prevRow != null && prevRow.Width > 0) ? prevRow.Width : W;
+
+                Action<double, double> EnsureLocalCol = (lx, ly) =>
+                {
+                    double gx = ox + lx * cosA - ly * sinA;
+                    double gy = oy + lx * sinA + ly * cosA;
+                    EnsureGlobalCol(gx, gy);
+                };
+
+                Action<double, double, double, double> PlaceLocalTransomAt = (lx, ly, lRot, tlen) =>
+                {
+                    double gx = ox + lx * cosA - ly * sinA;
+                    double gy = oy + lx * sinA + ly * cosA;
+                    double gRot = thetaDeg + lRot;
+                    double gRad = gRot * Math.PI / 180.0;
+                    double mx = gx + 0.5 * tlen * Math.Cos(gRad);
+                    double my = gy + 0.5 * tlen * Math.Sin(gRad);
+                    PlaceSharedGlobalTransom(gx, gy, mx, my, gRot, tlen);
+                };
+
+                Action<double> PlaceLocalTransom = (lx) =>
+                {
+                    PlaceLocalTransomAt(lx, -W, 90.0, W);
+                };
+
+                Action<double, double, double, double> PlaceLocalBaseboard = (lx, ly, lRot, blen) =>
+                {
+                    double gx = ox + lx * cosA - ly * sinA;
+                    double gy = oy + lx * sinA + ly * cosA;
+                    double gRot = thetaDeg + lRot;
+                    double gRad = gRot * Math.PI / 180.0;
+                    double mx = gx + 0.5 * blen * Math.Cos(gRad);
+                    double my = gy + 0.5 * blen * Math.Sin(gRad);
+                    PlaceSharedGlobalBaseboard(gx, gy, mx, my, gRot, blen);
+                };
+
+                Action<FamilySymbol, double, double, double, double, string, double> PlaceLocal = (sym, lx, ly, zMm, lRot, pName, pVal) =>
+                {
+                    if (sym == null) return;
+                    double gx = ox + lx * cosA - ly * sinA;
+                    double gy = oy + lx * sinA + ly * cosA;
+                    double gRot = thetaDeg + lRot;
+                    var inst = PlaceInstance(doc, sym, level, new XYZ(MmToFt(gx), MmToFt(gy), MmToFt(zMm)), gRot, pName, pVal);
+                    if (inst != null) placedIds.Add(inst.Id.IntegerValue);
+                };
+
+                Action<double, double, double, double, double, double> PlaceLocalPlank = (lx, ly, zMm, lRot, plen, pWidth) =>
+                {
+                    if (sym6 == null) return;
+                    double gx = ox + lx * cosA - ly * sinA;
+                    double gy = oy + lx * sinA + ly * cosA;
+                    double gRot = thetaDeg + lRot;
+                    var inst = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(gx), MmToFt(gy), MmToFt(zMm)), gRot, "l", plen);
+                    if (inst != null)
+                    {
+                        SetParam(inst, "w", pWidth);
+                        placedIds.Add(inst.Id.IntegerValue);
+                    }
+                };
+
+                Action<double, double, double, double, int> PlaceLocalBraces = (lx, ly, lRot, bLen, s) =>
+                {
+                    if (sym5 == null) return;
+                    double gx = ox + lx * cosA - ly * sinA;
+                    double gy = oy + lx * sinA + ly * cosA;
+                    double gRot = thetaDeg + lRot;
+                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, gx, gy, gRot, bLen, z0, jackH, s, storyCount, opts);
+                };
+
+                Action<double, bool> CloseLocalGable = (lxGable, isStartGable) =>
+                {
+                    EnsureLocalCol(lxGable, -W);
+                    EnsureLocalCol(lxGable, 0.0);
+                    PlaceLocalTransom(lxGable);
+                    PlaceLocalBaseboard(lxGable, -W, 90.0, W);
+                    double tbLx = isStartGable ? (lxGable + 66.0) : (lxGable - 66.0);
+                    for (int s = 0; s < storyCount; s++)
+                    {
+                        double sOff = s * 1800.0;
+                        double zDeck = z0 + jackH + 1730.0 + sOff;
+                        double zH6 = z0 + jackH + 2180.0 + sOff;
+                        double zH7 = z0 + jackH + 2630.0 + sOff;
+
+                        PlaceLocal(sym4, lxGable, -W, zH6, 90.0, "l", W);
+                        PlaceLocal(sym4, lxGable, -W, zH7, 90.0, "l", W);
+                        PlaceLocal(sym7, tbLx, -W, zDeck, 90.0, "l", W);
+                    }
+                };
+
+                Action<double, double> BuildLocalStandardBay = (lxStart, L_bay) =>
+                {
+                    EnsureLocalCol(lxStart, -W); EnsureLocalCol(lxStart, 0.0);
+                    EnsureLocalCol(lxStart + L_bay, -W); EnsureLocalCol(lxStart + L_bay, 0.0);
+                    PlaceLocalTransom(lxStart);
+                    PlaceLocalTransom(lxStart + L_bay);
+
+                    PlaceLocalBaseboard(lxStart, 0.0, 0.0, L_bay);
+                    PlaceLocalBaseboard(lxStart, -W, 0.0, L_bay);
+
+                    PlaceLocal(sym4, lxStart, 0.0, zH1, 0.0, "l", L_bay);
+                    PlaceLocal(sym4, lxStart, -W, zH1, 0.0, "l", L_bay);
+
+                    if (opts != null && opts.HasTopTransom)
+                    {
+                        PlaceLocal(sym4, lxStart, 0.0, topZ, 0.0, "l", L_bay);
+                        PlaceLocal(sym4, lxStart, -W, topZ, 0.0, "l", L_bay);
+                    }
+
+                    for (int s = 0; s < storyCount; s++)
+                    {
+                        double sOff = s * 1800.0;
+                        double zH3 = z0 + jackH + 830.0 + sOff;
+                        double zDeck = z0 + jackH + 1730.0 + sOff;
+                        double zH6 = z0 + jackH + 2180.0 + sOff;
+                        double zH7 = z0 + jackH + 2630.0 + sOff;
+
+                        PlaceLocal(sym4, lxStart, 0.0, zH3, 0.0, "l", L_bay);
+                        PlaceLocal(sym4, lxStart, 0.0, zH6, 0.0, "l", L_bay);
+                        PlaceLocal(sym4, lxStart, 0.0, zH7, 0.0, "l", L_bay);
+
+                        PlaceLocalBraces(lxStart, -W, 0.0, L_bay, s);
+
+                        PlaceLocalPlank(lxStart, -pOff, zDeck, 0.0, L_bay, pw);
+                        PlaceLocalPlank(lxStart, -W + pOff, zDeck, 0.0, L_bay, pw);
+
+                        PlaceLocal(sym7, lxStart, -66.0, zDeck, 0.0, "l", L_bay);
+                        PlaceLocal(sym7, lxStart, -W + 66.0, zDeck, 0.0, "l", L_bay);
+                    }
+                };
+
+                int startBayIdx = 0;
+                double curLx = 0.0;
+
+                // 1. Xử lý đầu vào (lx = 0) của hàng i dựa trên kết nối prevConn từ hàng trước
+                if (prevConn == "TH 0")
+                {
+                    CloseLocalGable(0.0, true);
+                }
+                else if (prevConn == "TH 2.1" || prevConn == "TH 2.2")
+                {
+                    // Nhịp đầu tiên (bay 0) của hàng hiện tại là nhịp góc vươn ngoài (Outer Corner)
+                    double L_first = curBays[0];
+                    double L_A = (L_first - wPrev > 10.0) ? (L_first - wPrev) : 0.0;
+
+                    bool entersFromBackEdge = true;
+                    if (prevRow != null && prevRow.HasCoords && curRow.HasCoords)
+                    {
+                        double pRad = prevRow.AngleDeg * Math.PI / 180.0;
+                        double crossPrev = Math.Cos(pRad) * sinA - Math.Sin(pRad) * cosA;
+                        entersFromBackEdge = (crossPrev < 0.0);
+                    }
+                    else
+                    {
+                        entersFromBackEdge = (prevConn == "TH 2.2");
+                    }
+
+                    double lyOuter = entersFromBackEdge ? 0.0 : -W;
+                    double lyInner = entersFromBackEdge ? -W : 0.0;
+                    double tbOuterLy = entersFromBackEdge ? -66.0 : (-W + 66.0);
+                    double tbInnerLy = entersFromBackEdge ? (-W + 66.0) : -66.0;
+
+                    EnsureLocalCol(0.0, -W); EnsureLocalCol(0.0, 0.0);
+                    EnsureLocalCol(L_first, -W); EnsureLocalCol(L_first, 0.0);
+                    if (L_A > 10.0) EnsureLocalCol(wPrev, lyInner);
+
+                    PlaceLocalTransom(0.0);
+                    PlaceLocalTransom(L_first);
+                    PlaceLocalTransomAt(0.0, lyInner, 0.0, wPrev);
+                    PlaceLocalBaseboard(0.0, -W, 90.0, W);
+
+                    PlaceLocalBaseboard(0.0, lyOuter, 0.0, L_first);
+                    PlaceLocal(sym4, 0.0, lyOuter, zH1, 0.0, "l", L_first);
+                    if (opts != null && opts.HasTopTransom)
+                    {
+                        PlaceLocal(sym4, 0.0, lyOuter, topZ, 0.0, "l", L_first);
+                    }
+
+                    if (L_A > 10.0)
+                    {
+                        PlaceLocalBaseboard(wPrev, lyInner, 0.0, L_A);
+                        PlaceLocal(sym4, wPrev, lyInner, zH1, 0.0, "l", L_A);
+                        if (opts != null && opts.HasTopTransom)
+                        {
+                            PlaceLocal(sym4, wPrev, lyInner, topZ, 0.0, "l", L_A);
+                        }
+                    }
+
+                    for (int s = 0; s < storyCount; s++)
+                    {
+                        double sOff = s * 1800.0;
+                        double zH3 = z0 + jackH + 830.0 + sOff;
+                        double zDeck = z0 + jackH + 1730.0 + sOff;
+                        double zH6 = z0 + jackH + 2180.0 + sOff;
+                        double zH7 = z0 + jackH + 2630.0 + sOff;
+
+                        if (prevConn == "TH 2.1")
+                        {
+                            PlaceLocalBraces(0.0, -W, 90.0, W, s);
+                            PlaceLocalBraces(0.0, lyOuter, 0.0, L_first, s);
+                            if (L_A > 10.0)
+                            {
+                                PlaceLocal(sym4, wPrev, lyInner, zH3, 0.0, "l", L_A);
+                                PlaceLocal(sym4, wPrev, lyInner, zH6, 0.0, "l", L_A);
+                                PlaceLocal(sym4, wPrev, lyInner, zH7, 0.0, "l", L_A);
+                            }
+                        }
+                        else
+                        {
+                            // TH 2.2: Vách ngoài dùng lan can Family 4, vách giật cấp trong dùng giằng chéo Family 5 (không giằng dọc chỗ giằng chéo)
+                            PlaceLocal(sym4, 0.0, -W, zH3, 90.0, "l", W);
+                            PlaceLocal(sym4, 0.0, -W, zH6, 90.0, "l", W);
+                            PlaceLocal(sym4, 0.0, -W, zH7, 90.0, "l", W);
+
+                            PlaceLocal(sym4, 0.0, lyOuter, zH3, 0.0, "l", L_first);
+                            PlaceLocal(sym4, 0.0, lyOuter, zH6, 0.0, "l", L_first);
+                            PlaceLocal(sym4, 0.0, lyOuter, zH7, 0.0, "l", L_first);
+
+                            if (L_A > 10.0)
+                            {
+                                PlaceLocalBraces(wPrev, lyInner, 0.0, L_A, s);
+                            }
+                        }
+
+                        PlaceLocalPlank(0.0, -pOff, zDeck, 0.0, L_first, pw);
+                        PlaceLocalPlank(0.0, -W + pOff, zDeck, 0.0, L_first, pw);
+
+                        PlaceLocal(sym7, 66.0, -W, zDeck, 90.0, "l", W);
+                        PlaceLocal(sym7, 0.0, tbOuterLy, zDeck, 0.0, "l", L_first);
+                        if (L_A > 10.0)
+                        {
+                            PlaceLocal(sym7, wPrev, tbInnerLy, zDeck, 0.0, "l", L_A);
+                        }
+                    }
+
+                    startBayIdx = 1;
+                    curLx = L_first;
+                }
+                else
+                {
+                    // Đầu vào từ góc thu trong (TH 1.1 .. TH 1.4)
+                    EnsureLocalCol(0.0, -W);
+                    EnsureLocalCol(0.0, 0.0);
+                    PlaceLocalTransom(0.0);
+                }
+
+                // 2. Xử lý thân và cuối của hàng i theo kết nối conn đi sang hàng i+1
+                if (!hasConnect)
+                {
+                    for (int b = startBayIdx; b < curBays.Count; b++)
+                    {
+                        BuildLocalStandardBay(curLx, curBays[b]);
+                        curLx += curBays[b];
+                    }
+                    CloseLocalGable(curLx, false);
+                }
+                else if (conn == "TH 2.1" || conn == "TH 2.2")
+                {
+                    // Với góc vươn ngoài (TH 2.1 / TH 2.2), dựng hết các nhịp thẳng của hàng hiện tại và để mở đầu cuối (curLx) làm cửa ngõ sang hàng tiếp theo
+                    for (int b = startBayIdx; b < curBays.Count; b++)
+                    {
+                        BuildLocalStandardBay(curLx, curBays[b]);
+                        curLx += curBays[b];
+                    }
+                    PlaceLocalTransom(curLx);
+                }
+                else
+                {
+                    // Với góc thu trong (TH 1.1, TH 1.2, TH 1.3, TH 1.4): dựng các nhịp thẳng trước nhịp cuối, nhịp cuối cắt mở cửa ngõ W_next
+                    for (int b = startBayIdx; b < curBays.Count - 1; b++)
+                    {
+                        BuildLocalStandardBay(curLx, curBays[b]);
+                        curLx += curBays[b];
+                    }
+
+                    if (startBayIdx < curBays.Count)
+                    {
+                        double L_last = curBays[curBays.Count - 1];
+                        double xBayLast = curLx;
+                        double xMax = xBayLast + L_last;
+                        double xC = xMax - wNext;
+                        double L_cut = L_last > wNext ? (L_last - wNext) : 0.0;
+
+                        bool cutFrontEdge = (conn == "TH 1.1" || conn == "TH 1.2");
+                        if (nextRow != null && nextRow.HasCoords && curRow.HasCoords)
+                        {
+                            double nRad = nextRow.AngleDeg * Math.PI / 180.0;
+                            double crossNext = cosA * Math.Sin(nRad) - sinA * Math.Cos(nRad);
+                            if (Math.Abs(crossNext) > 0.5)
+                            {
+                                cutFrontEdge = (crossNext > 0.0);
+                            }
+                        }
+
+                        EnsureLocalCol(xBayLast, -W); EnsureLocalCol(xBayLast, 0.0);
+                        EnsureLocalCol(xMax, -W); EnsureLocalCol(xMax, 0.0);
+                        PlaceLocalTransom(xBayLast);
+                        CloseLocalGable(xMax, false);
+
+                        if (cutFrontEdge)
+                        {
+                            // Mép sau (ly = -W) giữ nguyên L_last với Giằng chéo Family 5; Mép trước (ly = 0) cắt L_cut
+                            PlaceLocalBaseboard(xBayLast, -W, 0.0, L_last);
+                            PlaceLocal(sym4, xBayLast, -W, zH1, 0.0, "l", L_last);
+                            if (opts != null && opts.HasTopTransom)
+                            {
+                                PlaceLocal(sym4, xBayLast, -W, topZ, 0.0, "l", L_last);
+                            }
+
+                            for (int s = 0; s < storyCount; s++)
+                            {
+                                double sOff = s * 1800.0;
+                                double zDeck = z0 + jackH + 1730.0 + sOff;
+                                PlaceLocalBraces(xBayLast, -W, 0.0, L_last, s);
+                                PlaceLocal(sym7, xBayLast, -W + 66.0, zDeck, 0.0, "l", L_last);
+                                PlaceLocalPlank(xBayLast, -pOff, zDeck, 0.0, L_last, pw);
+                                PlaceLocalPlank(xBayLast, -W + pOff, zDeck, 0.0, L_last, pw);
+                            }
+
+                            EnsureLocalCol(xC, 0.0);
+                            PlaceLocalTransomAt(xC, 0.0, 0.0, wNext);
+                            if (L_cut > 10.0)
+                            {
+                                PlaceLocalBaseboard(xBayLast, 0.0, 0.0, L_cut);
+                                PlaceLocal(sym4, xBayLast, 0.0, zH1, 0.0, "l", L_cut);
+                                if (opts != null && opts.HasTopTransom)
+                                {
+                                    PlaceLocal(sym4, xBayLast, 0.0, topZ, 0.0, "l", L_cut);
+                                }
+                                for (int s = 0; s < storyCount; s++)
+                                {
+                                    double sOff = s * 1800.0;
+                                    double zH3 = z0 + jackH + 830.0 + sOff;
+                                    double zDeck = z0 + jackH + 1730.0 + sOff;
+                                    double zH6 = z0 + jackH + 2180.0 + sOff;
+                                    double zH7 = z0 + jackH + 2630.0 + sOff;
+                                    PlaceLocal(sym4, xBayLast, 0.0, zH3, 0.0, "l", L_cut);
+                                    PlaceLocal(sym4, xBayLast, 0.0, zH6, 0.0, "l", L_cut);
+                                    PlaceLocal(sym4, xBayLast, 0.0, zH7, 0.0, "l", L_cut);
+                                    PlaceLocal(sym7, xBayLast, -66.0, zDeck, 0.0, "l", L_cut);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // Mép trước (ly = 0) giữ nguyên L_last với Lan can Family 4; Mép sau (ly = -W) cắt L_cut
+                            PlaceLocalBaseboard(xBayLast, 0.0, 0.0, L_last);
+                            PlaceLocal(sym4, xBayLast, 0.0, zH1, 0.0, "l", L_last);
+                            if (opts != null && opts.HasTopTransom)
+                            {
+                                PlaceLocal(sym4, xBayLast, 0.0, topZ, 0.0, "l", L_last);
+                            }
+
+                            for (int s = 0; s < storyCount; s++)
+                            {
+                                double sOff = s * 1800.0;
+                                double zH3 = z0 + jackH + 830.0 + sOff;
+                                double zDeck = z0 + jackH + 1730.0 + sOff;
+                                double zH6 = z0 + jackH + 2180.0 + sOff;
+                                double zH7 = z0 + jackH + 2630.0 + sOff;
+                                PlaceLocal(sym4, xBayLast, 0.0, zH3, 0.0, "l", L_last);
+                                PlaceLocal(sym4, xBayLast, 0.0, zH6, 0.0, "l", L_last);
+                                PlaceLocal(sym4, xBayLast, 0.0, zH7, 0.0, "l", L_last);
+                                PlaceLocal(sym7, xBayLast, -66.0, zDeck, 0.0, "l", L_last);
+                                PlaceLocalPlank(xBayLast, -pOff, zDeck, 0.0, L_last, pw);
+                                PlaceLocalPlank(xBayLast, -W + pOff, zDeck, 0.0, L_last, pw);
+                            }
+
+                            EnsureLocalCol(xC, -W);
+                            PlaceLocalTransomAt(xC, -W, 0.0, wNext);
+                            if (L_cut > 10.0)
+                            {
+                                PlaceLocalBaseboard(xBayLast, -W, 0.0, L_cut);
+                                PlaceLocal(sym4, xBayLast, -W, zH1, 0.0, "l", L_cut);
+                                if (opts != null && opts.HasTopTransom)
+                                {
+                                    PlaceLocal(sym4, xBayLast, -W, topZ, 0.0, "l", L_cut);
+                                }
+                                for (int s = 0; s < storyCount; s++)
+                                {
+                                    double sOff = s * 1800.0;
+                                    double zDeck = z0 + jackH + 1730.0 + sOff;
+                                    PlaceLocalBraces(xBayLast, -W, 0.0, L_cut, s);
+                                    PlaceLocal(sym7, xBayLast, -W + 66.0, zDeck, 0.0, "l", L_cut);
+                                }
+                            }
+                        }
+
+                        curLx = xMax;
+                    }
+                }
+
+                // Cập nhật fallbackOx, fallbackOy, fallbackTheta phòng trường hợp người dùng thêm dòng thủ công sau dòng quét
+                if (!hasConnect)
+                {
+                    fallbackOx = ox + (curLx + W * 2.0) * cosA;
+                    fallbackOy = oy + (curLx + W * 2.0) * sinA;
+                    fallbackTheta = thetaDeg;
+                }
+                else if (conn == "TH 1.1" || conn == "TH 1.2")
+                {
+                    double nextLx = curLx - wNext;
+                    fallbackOx = ox + nextLx * cosA;
+                    fallbackOy = oy + nextLx * sinA;
+                    fallbackTheta = thetaDeg + 90.0;
+                }
+                else if (conn == "TH 1.3" || conn == "TH 1.4")
+                {
+                    fallbackOx = ox + curLx * cosA - (-W) * sinA;
+                    fallbackOy = oy + curLx * sinA + (-W) * cosA;
+                    fallbackTheta = thetaDeg - 90.0;
+                }
+                else if (conn == "TH 2.1")
+                {
+                    fallbackOx = ox + curLx * cosA - (-W) * sinA;
+                    fallbackOy = oy + curLx * sinA + (-W) * cosA;
+                    fallbackTheta = thetaDeg + 90.0;
+                }
+                else if (conn == "TH 2.2")
+                {
+                    double nextLx = curLx + wNext;
+                    fallbackOx = ox + nextLx * cosA;
+                    fallbackOy = oy + nextLx * sinA;
+                    fallbackTheta = thetaDeg - 90.0;
                 }
             }
 

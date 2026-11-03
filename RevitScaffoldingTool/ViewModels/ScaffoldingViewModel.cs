@@ -229,10 +229,28 @@ namespace RevitScaffoldingTool.ViewModels
             double l2First = caseL2Bays[0];
             double w = ButtonW > 0 ? ButtonW : 1200.0;
 
+            double startX = 0.0;
+            double startY = 0.0;
+            if (IsFromData && BayRows.Count > 0)
+            {
+                BayRowModel refRow = BayRows[0];
+                if (mode == -4 && BayRows.Count > 1) refRow = BayRows[1];
+                else if (mode == -5 && BayRows.Count > 2) refRow = BayRows[2];
+                else if (mode == -6 && BayRows.Count > 3) refRow = BayRows[3];
+                else if (mode == -3 && BayRows.Count > 4) refRow = BayRows[4];
+                else if (mode == -7 && BayRows.Count > 5) refRow = BayRows[5];
+
+                if (refRow != null && (Math.Abs(refRow.StartX) > 0.01 || Math.Abs(refRow.StartY) > 0.01 || Math.Abs(refRow.EndX) > 0.01 || Math.Abs(refRow.EndY) > 0.01))
+                {
+                    startX = refRow.StartX;
+                    startY = refRow.StartY;
+                }
+            }
+
             return new BuildOptions
             {
-                X0 = 0.0,
-                Y0 = 0.0,
+                X0 = startX,
+                Y0 = startY,
                 Z0 = IsFromData ? ElevationZ : 0.0,
                 BayWidth = w,
                 L1 = l1Last,
@@ -545,14 +563,22 @@ namespace RevitScaffoldingTool.ViewModels
                     Width = r.Width > 0 ? r.Width : w,
                     StartX = r.StartX,
                     StartY = r.StartY,
+                    StartZ = r.StartZ,
+                    EndX = r.EndX,
+                    EndY = r.EndY,
+                    EndZ = r.EndZ,
+                    AngleDeg = r.AngleDeg,
                     HasCoords = hasCoords
                 });
             }
 
+            double firstX = (tableRows.Count > 0 && tableRows[0].HasCoords) ? tableRows[0].StartX : 0.0;
+            double firstY = (tableRows.Count > 0 && tableRows[0].HasCoords) ? tableRows[0].StartY : 0.0;
+
             return new BuildOptions
             {
-                X0 = 0.0,
-                Y0 = 0.0,
+                X0 = firstX,
+                Y0 = firstY,
                 Z0 = ElevationZ,
                 BayWidth = w,
                 TableRows = tableRows,

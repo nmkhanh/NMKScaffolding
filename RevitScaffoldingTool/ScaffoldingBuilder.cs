@@ -15,6 +15,11 @@ namespace RevitScaffoldingTool
         public double Width { get; set; } = 1200.0;
         public double StartX { get; set; } = 0.0;
         public double StartY { get; set; } = 0.0;
+        public double StartZ { get; set; } = 0.0;
+        public double EndX { get; set; } = 0.0;
+        public double EndY { get; set; } = 0.0;
+        public double EndZ { get; set; } = 0.0;
+        public double AngleDeg { get; set; } = 0.0;
         public bool HasCoords { get; set; } = false;
     }
 
