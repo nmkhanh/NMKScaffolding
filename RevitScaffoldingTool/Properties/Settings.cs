@@ -89,7 +89,7 @@ namespace RevitScaffoldingTool.Properties
         }
 
         [UserScopedSetting]
-        [DefaultSettingValue("False")]
+        [DefaultSettingValue("True")]
         public bool IsFromData
         {
             get => (bool)this[nameof(IsFromData)];
@@ -97,7 +97,15 @@ namespace RevitScaffoldingTool.Properties
         }
 
         [UserScopedSetting]
-        [DefaultSettingValue("1800")]
+        [DefaultSettingValue("1800,1800")]
+        public string ButtonL0
+        {
+            get => (string)this[nameof(ButtonL0)];
+            set => this[nameof(ButtonL0)] = value;
+        }
+
+        [UserScopedSetting]
+        [DefaultSettingValue("1800,1200")]
         public string ButtonL1
         {
             get => (string)this[nameof(ButtonL1)];
@@ -105,11 +113,43 @@ namespace RevitScaffoldingTool.Properties
         }
 
         [UserScopedSetting]
-        [DefaultSettingValue("1800")]
+        [DefaultSettingValue("1800,1800")]
         public string ButtonL2
         {
             get => (string)this[nameof(ButtonL2)];
             set => this[nameof(ButtonL2)] = value;
+        }
+
+        [UserScopedSetting]
+        [DefaultSettingValue("1800,1200")]
+        public string ButtonL3
+        {
+            get => (string)this[nameof(ButtonL3)];
+            set => this[nameof(ButtonL3)] = value;
+        }
+
+        [UserScopedSetting]
+        [DefaultSettingValue("1800,1800")]
+        public string ButtonL4
+        {
+            get => (string)this[nameof(ButtonL4)];
+            set => this[nameof(ButtonL4)] = value;
+        }
+
+        [UserScopedSetting]
+        [DefaultSettingValue("1800,2x1800")]
+        public string ButtonL5
+        {
+            get => (string)this[nameof(ButtonL5)];
+            set => this[nameof(ButtonL5)] = value;
+        }
+
+        [UserScopedSetting]
+        [DefaultSettingValue("1800,2x1800")]
+        public string ButtonL6
+        {
+            get => (string)this[nameof(ButtonL6)];
+            set => this[nameof(ButtonL6)] = value;
         }
 
         [UserScopedSetting]
@@ -118,6 +158,54 @@ namespace RevitScaffoldingTool.Properties
         {
             get => (double)this[nameof(ButtonW)];
             set => this[nameof(ButtonW)] = value;
+        }
+
+        [UserScopedSetting]
+        [DefaultSettingValue("True")]
+        public bool CheckCase11
+        {
+            get => (bool)this[nameof(CheckCase11)];
+            set => this[nameof(CheckCase11)] = value;
+        }
+
+        [UserScopedSetting]
+        [DefaultSettingValue("True")]
+        public bool CheckCase12
+        {
+            get => (bool)this[nameof(CheckCase12)];
+            set => this[nameof(CheckCase12)] = value;
+        }
+
+        [UserScopedSetting]
+        [DefaultSettingValue("True")]
+        public bool CheckCase13
+        {
+            get => (bool)this[nameof(CheckCase13)];
+            set => this[nameof(CheckCase13)] = value;
+        }
+
+        [UserScopedSetting]
+        [DefaultSettingValue("True")]
+        public bool CheckCase14
+        {
+            get => (bool)this[nameof(CheckCase14)];
+            set => this[nameof(CheckCase14)] = value;
+        }
+
+        [UserScopedSetting]
+        [DefaultSettingValue("True")]
+        public bool CheckCase21
+        {
+            get => (bool)this[nameof(CheckCase21)];
+            set => this[nameof(CheckCase21)] = value;
+        }
+
+        [UserScopedSetting]
+        [DefaultSettingValue("True")]
+        public bool CheckCase22
+        {
+            get => (bool)this[nameof(CheckCase22)];
+            set => this[nameof(CheckCase22)] = value;
         }
     }
 }

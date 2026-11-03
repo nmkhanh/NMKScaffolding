@@ -18,8 +18,19 @@ namespace RevitScaffoldingTool
         public List<double> BayLengths { get; set; }
         public double L1 { get; set; }
         public double L2 { get; set; }
+        public List<double> L0Bays { get; set; }
         public List<double> L1Bays { get; set; }
         public List<double> L2Bays { get; set; }
+        public List<double> L3Bays { get; set; }
+        public List<double> L4Bays { get; set; }
+        public List<double> L5Bays { get; set; }
+        public List<double> L6Bays { get; set; }
+        public bool CheckCase11 { get; set; }
+        public bool CheckCase12 { get; set; }
+        public bool CheckCase13 { get; set; }
+        public bool CheckCase14 { get; set; }
+        public bool CheckCase21 { get; set; }
+        public bool CheckCase22 { get; set; }
         public int Mode { get; set; }
         public string FamilyFolder { get; set; }
 
@@ -43,8 +54,19 @@ namespace RevitScaffoldingTool
             BayLengths = new List<double> { 1800, 1200, 1800, 1200, 1800 };
             L1 = 1800;
             L2 = 1800;
-            L1Bays = new List<double> { 1800 };
-            L2Bays = new List<double> { 1800 };
+            L0Bays = new List<double> { 1800, 1800 };
+            L1Bays = new List<double> { 1800, 1200 };
+            L2Bays = new List<double> { 1800, 1800 };
+            L3Bays = new List<double> { 1800, 1200 };
+            L4Bays = new List<double> { 1800, 1800 };
+            L5Bays = new List<double> { 1800, 1800, 1800 };
+            L6Bays = new List<double> { 1800, 1800, 1800 };
+            CheckCase11 = true;
+            CheckCase12 = true;
+            CheckCase13 = true;
+            CheckCase14 = true;
+            CheckCase21 = true;
+            CheckCase22 = true;
             Mode = -1;
             FamilyFolder = @"H:\My Drive\Family\New folder\Child";
             Post1Height = 0;

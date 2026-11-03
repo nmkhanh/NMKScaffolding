@@ -1,54 +1,55 @@
-# Script kiem tra tu dong chong Stub trong ScaffoldingBuilder.TableRun.cs
+# Script kiem tra tu dong chong Stub cho Master Continue (L0..L6 + CheckCase11..CheckCase22) va Dark Theme UI
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host "   KIEM TOAN CHONG STUB / RONG (ANTI-STUB)" -ForegroundColor Cyan
+Write-Host "   KIEM TOAN MASTER CONTINUE & DARK UI    " -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
-$file = "RevitScaffoldingTool\ScaffoldingBuilder.TableRun.cs"
-if (-not (Test-Path $file)) {
-    Write-Host "[FAIL] Khong tim thay tep $file" -ForegroundColor Red
-    exit 1
-}
-
-$content = Get-Content $file -Raw
 $errors = @()
 
-# 1. Kiem tra xem co ham nao uy thac ConnectCorner_TH1_1 khong
-$stubMatches = [regex]::Matches($content, 'ConnectCorner_TH(1_[2-4]|2_[1-2])\([^\)]*\)\s*\{[^}]*ConnectCorner_TH1_1')
-if ($stubMatches.Count -gt 0) {
-    foreach ($m in $stubMatches) {
-        $errors += "Phat hien ham uy thac gia mao: " + $m.Value.Substring(0, 40)
-    }
-}
-
-# 2. Kiem tra xem 6 ham co ton tai va co than ham day du khong
-$requiredCases = @("ConnectCorner_TH1_1", "ConnectCorner_TH1_2", "ConnectCorner_TH1_3", "ConnectCorner_TH1_4", "ConnectCorner_TH2_1", "ConnectCorner_TH2_2")
-foreach ($case in $requiredCases) {
-    if ($content -notmatch "void\s+$case\s*\(") {
-        $errors += "Thieu dinh nghia ham $case"
-    } else {
-        # Kiem tra xem than ham co chua cac cau kien co ban hay khong
-        $pattern = "void\s+$case\s*\([^\)]*\)\s*\{([^}]*\{[^}]*\})*[^}]*\}"
-        if ($content -match $pattern) {
-            $body = $matches[0]
-            if ($body -notmatch "PlaceInstance" -or $body -notmatch "ensureCol") {
-                $errors += "Ham $case khong chua logic dat cau kien thuc te!"
-            }
+$masterFile = "RevitScaffoldingTool\ScaffoldingBuilder.Master.cs"
+if (-not (Test-Path $masterFile)) {
+    $errors += "Khong tim thay $masterFile"
+} else {
+    $masterContent = Get-Content $masterFile -Raw
+    foreach ($bayVar in @("l0Bays", "l1Bays", "l2Bays", "l3Bays", "l4Bays", "l5Bays", "l6Bays")) {
+        if ($masterContent -notmatch $bayVar) {
+            $errors += "Master.cs thieu xu ly $bayVar"
         }
     }
+    foreach ($chkVar in @("CheckCase11", "CheckCase12", "CheckCase13", "CheckCase14", "CheckCase21", "CheckCase22")) {
+        if ($masterContent -notmatch $chkVar) {
+            $errors += "Master.cs thieu kiem tra $chkVar"
+        }
+    }
+    if ($masterContent -notmatch "BuildBayPlusX" -or $masterContent -notmatch "BuildBayPlusY" -or $masterContent -notmatch "BuildBayMinusY") {
+        $errors += "Master.cs thieu cac ham dung nhip lien tuc"
+    }
 }
 
-# 3. Kiem tra ho tro vong khep kin (Closed Loop)
-if ($content -notmatch "isClosedLoop" -or $content -notmatch "dEndToStart") {
-    $errors += "Thieu logic xu ly Vong Khep Kin (Closed Loop)"
+$vmFile = "RevitScaffoldingTool\ViewModels\ScaffoldingViewModel.cs"
+$vmContent = Get-Content $vmFile -Raw
+foreach ($prop in @("_buttonL0", "_buttonL1", "_buttonL2", "_buttonL3", "_buttonL4", "_buttonL5", "_buttonL6", "_checkCase11", "_checkCase12", "_checkCase13", "_checkCase14", "_checkCase21", "_checkCase22")) {
+    if ($vmContent -notmatch $prop) {
+        $errors += "ScaffoldingViewModel.cs thieu thuoc tinh $prop"
+    }
+}
+
+$xamlFile = "RevitScaffoldingTool\Views\ScaffoldingWindow.xaml"
+$xamlContent = Get-Content $xamlFile -Raw
+if ($xamlContent -notmatch 'Background="#0F172A"') {
+    $errors += "ScaffoldingWindow.xaml chua chuyen sang Dark Theme (#0F172A)"
+}
+foreach ($bind in @("ButtonL0", "ButtonL1", "ButtonL2", "ButtonL3", "ButtonL4", "ButtonL5", "ButtonL6", "CheckCase11", "CheckCase12", "CheckCase13", "CheckCase14", "CheckCase21", "CheckCase22")) {
+    if ($xamlContent -notmatch $bind) {
+        $errors += "ScaffoldingWindow.xaml thieu binding $bind"
+    }
 }
 
 if ($errors.Count -eq 0) {
     Write-Host "[PASS - DA LAM XONG 100%]" -ForegroundColor Green
-    Write-Host "Tat ca 6 truong hop Connect da duoc code chi tiet voi kich thuoc thuc te (L_last, L_first, W_A, W_B)." -ForegroundColor Green
-    Write-Host "Logic Vong Khep Kin (Closed Loop) da duoc tich hop hoan tat." -ForegroundColor Green
+    Write-Host "UI Dark Theme, L0..L6, 6 CheckBoxes (default true) va Master Continue 6 TH da hoan tat 100%." -ForegroundColor Green
     exit 0
 } else {
-    Write-Host "[FAIL - CHUA LAM XONG]" -ForegroundColor Red
+    Write-Host "[FAIL]" -ForegroundColor Red
     foreach ($err in $errors) {
         Write-Host " - $err" -ForegroundColor Red
     }

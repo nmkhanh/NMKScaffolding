@@ -43,13 +43,27 @@ namespace RevitScaffoldingTool.ViewModels
         // Tùy chọn chạy theo dữ liệu nhập (From data) — ÁP DỤNG RIÊNG CHO NHÓM NÚT BÊN PHẢI
         [ObservableProperty] private bool _isFromData = true;
 
-        // Thông số nhịp & bề rộng riêng cho nhóm Button bên phải (L1, L2 hỗ trợ dạng "1800,2x1200,1800,3x1200,...")
-        [ObservableProperty] private string _buttonL1 = "1800";
-        [ObservableProperty] private string _buttonL2 = "1800";
+        // 7 chuỗi nhịp L0..L6 và bề rộng W cho nhóm Button bên phải:
+        // TH 1.1: L0 => L1 | TH 1.2: L1 => L2 | TH 1.3: L2 => L3 | TH 1.4: L3 => L4 | TH 2.1: L4 => L5 | TH 2.2: L5 => L6
+        [ObservableProperty] private string _buttonL0 = "1800,1800";
+        [ObservableProperty] private string _buttonL1 = "1800,1200";
+        [ObservableProperty] private string _buttonL2 = "1800,1800";
+        [ObservableProperty] private string _buttonL3 = "1800,1200";
+        [ObservableProperty] private string _buttonL4 = "1800,1800";
+        [ObservableProperty] private string _buttonL5 = "1800,2x1800";
+        [ObservableProperty] private string _buttonL6 = "1800,2x1800";
         [ObservableProperty] private double _buttonW = 1200.0;
 
+        // 6 CheckBox cho 6 trường hợp (mặc định true) dùng cho nút Master chạy nối tiếp (Continue)
+        [ObservableProperty] private bool _checkCase11 = true;
+        [ObservableProperty] private bool _checkCase12 = true;
+        [ObservableProperty] private bool _checkCase13 = true;
+        [ObservableProperty] private bool _checkCase14 = true;
+        [ObservableProperty] private bool _checkCase21 = true;
+        [ObservableProperty] private bool _checkCase22 = true;
+
         // Trạng thái thực thi
-        [ObservableProperty] private string _statusMessage = "Sẵn sàng thi công giàn giáo ALINCO.";
+        [ObservableProperty] private string _statusMessage = "Sẵn sàng thi công giàn giáo ALINCO (Dark Theme).";
         [ObservableProperty] private bool _isBusy = false;
 
         public ScaffoldingViewModel(UIApplication uiApp)
@@ -74,9 +88,22 @@ namespace RevitScaffoldingTool.ViewModels
                 StoryCount = s.StoryCount > 0 ? s.StoryCount : 1;
                 HasTopTransom = s.HasTopTransom;
                 IsFromData = s.IsFromData;
-                ButtonL1 = !string.IsNullOrWhiteSpace(s.ButtonL1) ? s.ButtonL1 : "1800";
-                ButtonL2 = !string.IsNullOrWhiteSpace(s.ButtonL2) ? s.ButtonL2 : "1800";
+
+                ButtonL0 = !string.IsNullOrWhiteSpace(s.ButtonL0) ? s.ButtonL0 : "1800,1800";
+                ButtonL1 = !string.IsNullOrWhiteSpace(s.ButtonL1) ? s.ButtonL1 : "1800,1200";
+                ButtonL2 = !string.IsNullOrWhiteSpace(s.ButtonL2) ? s.ButtonL2 : "1800,1800";
+                ButtonL3 = !string.IsNullOrWhiteSpace(s.ButtonL3) ? s.ButtonL3 : "1800,1200";
+                ButtonL4 = !string.IsNullOrWhiteSpace(s.ButtonL4) ? s.ButtonL4 : "1800,1800";
+                ButtonL5 = !string.IsNullOrWhiteSpace(s.ButtonL5) ? s.ButtonL5 : "1800,2x1800";
+                ButtonL6 = !string.IsNullOrWhiteSpace(s.ButtonL6) ? s.ButtonL6 : "1800,2x1800";
                 ButtonW = s.ButtonW > 0 ? s.ButtonW : 1200.0;
+
+                CheckCase11 = s.CheckCase11;
+                CheckCase12 = s.CheckCase12;
+                CheckCase13 = s.CheckCase13;
+                CheckCase14 = s.CheckCase14;
+                CheckCase21 = s.CheckCase21;
+                CheckCase22 = s.CheckCase22;
             }
             catch
             {
@@ -100,9 +127,22 @@ namespace RevitScaffoldingTool.ViewModels
                 s.StoryCount = StoryCount;
                 s.HasTopTransom = HasTopTransom;
                 s.IsFromData = IsFromData;
-                s.ButtonL1 = !string.IsNullOrWhiteSpace(ButtonL1) ? ButtonL1 : "1800";
-                s.ButtonL2 = !string.IsNullOrWhiteSpace(ButtonL2) ? ButtonL2 : "1800";
+
+                s.ButtonL0 = !string.IsNullOrWhiteSpace(ButtonL0) ? ButtonL0 : "1800,1800";
+                s.ButtonL1 = !string.IsNullOrWhiteSpace(ButtonL1) ? ButtonL1 : "1800,1200";
+                s.ButtonL2 = !string.IsNullOrWhiteSpace(ButtonL2) ? ButtonL2 : "1800,1800";
+                s.ButtonL3 = !string.IsNullOrWhiteSpace(ButtonL3) ? ButtonL3 : "1800,1200";
+                s.ButtonL4 = !string.IsNullOrWhiteSpace(ButtonL4) ? ButtonL4 : "1800,1800";
+                s.ButtonL5 = !string.IsNullOrWhiteSpace(ButtonL5) ? ButtonL5 : "1800,2x1800";
+                s.ButtonL6 = !string.IsNullOrWhiteSpace(ButtonL6) ? ButtonL6 : "1800,2x1800";
                 s.ButtonW = ButtonW;
+
+                s.CheckCase11 = CheckCase11;
+                s.CheckCase12 = CheckCase12;
+                s.CheckCase13 = CheckCase13;
+                s.CheckCase14 = CheckCase14;
+                s.CheckCase21 = CheckCase21;
+                s.CheckCase22 = CheckCase22;
                 s.Save();
             }
             catch
@@ -111,109 +151,96 @@ namespace RevitScaffoldingTool.ViewModels
         }
 
         /// <summary>
-        /// Tạo cấu hình thực thi cho nhóm Button bên phải (tuân thủ Checkbox IsFromData).
-        /// Hỗ trợ L1, L2 dạng chuỗi nhiều nhịp: "1800,2x1200,1800,3x1200,...".
+        /// Tạo cấu hình thực thi cho nhóm Button bên phải:
+        /// - TH 1.1 (-2): L0 => L1
+        /// - TH 1.2 (-4): L1 => L2
+        /// - TH 1.3 (-5): L2 => L3
+        /// - TH 1.4 (-6): L3 => L4
+        /// - TH 2.1 (-3): L4 => L5
+        /// - TH 2.2 (-7): L5 => L6
+        /// - MASTER (-8): Chạy nối tiếp (continue) các TH có CheckBox == true với L0 .. L6
         /// </summary>
         private BuildOptions CreateOptionsForButtons(int mode)
         {
             SaveSettings();
 
+            List<double> l0Bays = ScaffoldingBuilder.ParseBayLengths(ButtonL0, 1800.0);
             List<double> l1Bays = ScaffoldingBuilder.ParseBayLengths(ButtonL1, 1800.0);
             List<double> l2Bays = ScaffoldingBuilder.ParseBayLengths(ButtonL2, 1800.0);
-            double l1Last = l1Bays[l1Bays.Count - 1];
-            double l2First = l2Bays[0];
+            List<double> l3Bays = ScaffoldingBuilder.ParseBayLengths(ButtonL3, 1800.0);
+            List<double> l4Bays = ScaffoldingBuilder.ParseBayLengths(ButtonL4, 1800.0);
+            List<double> l5Bays = ScaffoldingBuilder.ParseBayLengths(ButtonL5, 1800.0);
+            List<double> l6Bays = ScaffoldingBuilder.ParseBayLengths(ButtonL6, 1800.0);
+
+            List<double> caseL1Bays = l0Bays;
+            List<double> caseL2Bays = l1Bays;
+
+            switch (mode)
+            {
+                case -2: // TH 1.1: L0 => L1
+                    caseL1Bays = l0Bays;
+                    caseL2Bays = l1Bays;
+                    break;
+                case -4: // TH 1.2: L1 => L2
+                    caseL1Bays = l1Bays;
+                    caseL2Bays = l2Bays;
+                    break;
+                case -5: // TH 1.3: L2 => L3
+                    caseL1Bays = l2Bays;
+                    caseL2Bays = l3Bays;
+                    break;
+                case -6: // TH 1.4: L3 => L4
+                    caseL1Bays = l3Bays;
+                    caseL2Bays = l4Bays;
+                    break;
+                case -3: // TH 2.1: L4 => L5
+                    caseL1Bays = l4Bays;
+                    caseL2Bays = l5Bays;
+                    break;
+                case -7: // TH 2.2: L5 => L6
+                    caseL1Bays = l5Bays;
+                    caseL2Bays = l6Bays;
+                    break;
+            }
+
+            double l1Last = caseL1Bays[caseL1Bays.Count - 1];
+            double l2First = caseL2Bays[0];
             double w = ButtonW > 0 ? ButtonW : 1200.0;
-
-            if (!IsFromData)
-            {
-                // Chế độ Default (chạy theo thông số mặc định của từng trường hợp)
-                return new BuildOptions
-                {
-                    X0 = 0.0,
-                    Y0 = 0.0,
-                    Z0 = 0.0,
-                    BayWidth = w,
-                    L1 = l1Last,
-                    L2 = l2First,
-                    L1Bays = l1Bays,
-                    L2Bays = l2Bays,
-                    JackHeight = 250.0,
-                    BayLengths = new List<double>(l1Bays),
-                    FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
-                    Mode = mode,
-                    IsFromData = false,
-                    Post1Height = 0,
-                    Post2Height = 0,
-                    Post3Count = 0,
-                    Post3Height = 0,
-                    Post4Height = 0,
-                    Post5Height = 0,
-                    StoryCount = 1,
-                    HasTopTransom = false
-                };
-            }
-            else
-            {
-                // Chế độ From Data (chạy theo thông số cấu hình ở Cột Data giữa)
-                return new BuildOptions
-                {
-                    X0 = 0.0,
-                    Y0 = 0.0,
-                    Z0 = ElevationZ,
-                    BayWidth = w,
-                    L1 = l1Last,
-                    L2 = l2First,
-                    L1Bays = l1Bays,
-                    L2Bays = l2Bays,
-                    JackHeight = JackHeight,
-                    BayLengths = new List<double>(l1Bays),
-                    FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
-                    Mode = mode,
-                    IsFromData = true,
-                    Post1Height = Post1Height,
-                    Post2Height = Post2Height,
-                    Post3Count = Post3Count,
-                    Post3Height = Post3Height,
-                    Post4Height = Post4Height,
-                    Post5Height = Post5Height,
-                    StoryCount = StoryCount > 0 ? StoryCount : 1,
-                    HasTopTransom = HasTopTransom
-                };
-            }
-        }
-
-        /// <summary>
-        /// Tạo cấu hình thực thi cho nút Run bên Table.
-        /// </summary>
-        private BuildOptions CreateOptionsForTableRun(int mode, BayRowModel row)
-        {
-            SaveSettings();
-
-            var lengths = (row != null && row.BayLengths != null && row.BayLengths.Count > 0)
-                ? row.BayLengths
-                : new List<double> { 1800, 1200, 1800, 1200, 1800 };
-
-            double w = (row != null && row.Width > 0) ? row.Width : (BayWidth > 0 ? BayWidth : 1200.0);
 
             return new BuildOptions
             {
-                X0 = row != null ? row.StartX : 0.0,
-                Y0 = row != null ? row.StartY : 0.0,
-                Z0 = ElevationZ,
+                X0 = 0.0,
+                Y0 = 0.0,
+                Z0 = IsFromData ? ElevationZ : 0.0,
                 BayWidth = w,
-                JackHeight = JackHeight,
-                BayLengths = lengths,
+                L1 = l1Last,
+                L2 = l2First,
+                L0Bays = l0Bays,
+                L1Bays = mode == -8 ? l1Bays : caseL1Bays,
+                L2Bays = mode == -8 ? l2Bays : caseL2Bays,
+                L3Bays = l3Bays,
+                L4Bays = l4Bays,
+                L5Bays = l5Bays,
+                L6Bays = l6Bays,
+                CheckCase11 = CheckCase11,
+                CheckCase12 = CheckCase12,
+                CheckCase13 = CheckCase13,
+                CheckCase14 = CheckCase14,
+                CheckCase21 = CheckCase21,
+                CheckCase22 = CheckCase22,
+                JackHeight = IsFromData ? JackHeight : 250.0,
+                BayLengths = new List<double>(caseL1Bays),
                 FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
                 Mode = mode,
-                IsFromData = true, // Nút Run bên table luôn lấy data để dựng
-                Post1Height = Post1Height,
-                Post2Height = Post2Height,
-                Post3Count = Post3Count,
-                Post3Height = Post3Height,
-                Post4Height = Post4Height,
-                Post5Height = Post5Height,
-                StoryCount = StoryCount > 0 ? StoryCount : 1,
-                HasTopTransom = HasTopTransom
+                IsFromData = IsFromData,
+                Post1Height = IsFromData ? Post1Height : 0,
+                Post2Height = IsFromData ? Post2Height : 0,
+                Post3Count = IsFromData ? Post3Count : 0,
+                Post3Height = IsFromData ? Post3Height : 0,
+                Post4Height = IsFromData ? Post4Height : 0,
+                Post5Height = IsFromData ? Post5Height : 0,
+                StoryCount = IsFromData ? (StoryCount > 0 ? StoryCount : 1) : 1,
+                HasTopTransom = IsFromData && HasTopTransom
             };
         }
 
@@ -249,7 +276,6 @@ namespace RevitScaffoldingTool.ViewModels
                     }
                     catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                     {
-                        // Người dùng ESC / không chọn -> Tự động quét toàn bộ trong active view
                     }
 
                     if (instances.Count == 0)
@@ -294,7 +320,6 @@ namespace RevitScaffoldingTool.ViewModels
                             }
                         }
 
-                        // Gợi ý trường hợp Connect theo thứ tự ban đầu
                         string defaultCase = "TH 1.1";
                         if (idx == 2) defaultCase = "TH 1.2";
                         else if (idx == 3) defaultCase = "TH 1.3";
@@ -310,7 +335,6 @@ namespace RevitScaffoldingTool.ViewModels
                         Parameter pW = inst.LookupParameter("W");
                         if (pW != null && pW.HasValue) w = Math.Round(pW.AsDouble() * 304.8, 0);
 
-                        // Trích xuất tọa độ điểm đầu, điểm cuối và góc xoay hướng tuyến
                         double sX = 0, sY = 0, sZ = 0, eX = 0, eY = 0, eZ = 0, angleDeg = 0;
                         LocationCurve locCurve = inst.Location as LocationCurve;
                         if (locCurve != null && locCurve.Curve != null)
@@ -358,7 +382,14 @@ namespace RevitScaffoldingTool.ViewModels
                 if (BayRows.Count > 0)
                 {
                     SelectedBayRow = BayRows[0];
-                    StatusMessage = string.Format("Đã quét thành công {0} hệ giàn từ Revit.", BayRows.Count);
+                    if (BayRows.Count > 0) ButtonL0 = BayRows[0].BayList;
+                    if (BayRows.Count > 1) ButtonL1 = BayRows[1].BayList;
+                    if (BayRows.Count > 2) ButtonL2 = BayRows[2].BayList;
+                    if (BayRows.Count > 3) ButtonL3 = BayRows[3].BayList;
+                    if (BayRows.Count > 4) ButtonL4 = BayRows[4].BayList;
+                    if (BayRows.Count > 5) ButtonL5 = BayRows[5].BayList;
+                    if (BayRows.Count > 6) ButtonL6 = BayRows[6].BayList;
+                    StatusMessage = string.Format("Đã quét thành công {0} hệ giàn từ Revit và đồng bộ vào L0..L6.", BayRows.Count);
                 }
                 else
                 {
@@ -375,64 +406,11 @@ namespace RevitScaffoldingTool.ViewModels
             }
         }
 
-        /// <summary>
-        /// NÚT RUN TRÊN BẢNG TABLE:
-        /// Thực thi theo Pipeline chuẩn: TH thẳng Row 1 -> TH thẳng Row 2 -> Connect (Row 1-2) -> TH thẳng Row 3 -> Connect (Row 2-3) -> ...
-        /// Dùng data từ Table và Cột Giữa để dựng.
-        /// </summary>
         [RelayCommand]
-        private async Task RunBaysAsync()
+        private Task RunBaysAsync()
         {
-            if (IsBusy) return;
-            if (BayRows.Count == 0)
-            {
-                StatusMessage = "Vui lòng bấm 'Quét (Select)' để tải dữ liệu hệ giàn trước khi Run.";
-                return;
-            }
-
-            IsBusy = true;
-            StatusMessage = string.Format("Đang thi công {0} hệ giàn theo Table Pipeline (Thẳng -> Connect)...", BayRows.Count);
-
-            try
-            {
-                var targetRow = SelectedBayRow ?? BayRows[0];
-                BuildOptions opts = CreateOptionsForTableRun(-100, targetRow);
-                var rowsList = BayRows.ToList();
-
-                BuildResult res = await RevitTask.RunAsync(app =>
-                {
-                    Document doc = app.ActiveUIDocument != null ? app.ActiveUIDocument.Document : null;
-                    if (doc == null)
-                    {
-                        return new BuildResult { Success = false, Message = "Không tìm thấy Document Revit đang mở." };
-                    }
-                    return ScaffoldingBuilder.ExecuteTableBuild(doc, opts, rowsList);
-                });
-
-                StatusMessage = res.Message;
-            }
-            catch (Exception ex)
-            {
-                StatusMessage = "Lỗi thi công Table Pipeline: " + ex.Message;
-            }
-            finally
-            {
-                IsBusy = false;
-            }
-        }
-
-        private static int GetModeFromConnectCase(string connectCase)
-        {
-            switch (connectCase)
-            {
-                case "TH 1.1": return -2;
-                case "TH 1.2": return -4;
-                case "TH 1.3": return -5;
-                case "TH 1.4": return -6;
-                case "TH 2.1": return -3;
-                case "TH 2.2": return -7;
-                default: return -2;
-            }
+            // Đã xóa code Button Run cũ; chuyển sang gọi Master Continue theo L0..L6 và 6 CheckBox
+            return BuildMasterAsync();
         }
 
         [RelayCommand]
@@ -455,12 +433,11 @@ namespace RevitScaffoldingTool.ViewModels
                         if (faceRef != null)
                         {
                             XYZ pt = faceRef.GlobalPoint;
-                            return pt.Z * 304.8; // Đổi sang mm
+                            return pt.Z * 304.8;
                         }
                     }
                     catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                     {
-                        // Người dùng nhấn ESC
                     }
                     return null;
                 });
@@ -519,24 +496,24 @@ namespace RevitScaffoldingTool.ViewModels
         }
 
         [RelayCommand]
-        private Task BuildMasterAsync() => RunBuildModeAsync(-8, "MASTER - LIÊN TỤC FULL 6 TRƯỜNG HỢP");
+        private Task BuildMasterAsync() => RunBuildModeAsync(-8, "MASTER — CONTINUE CÁC TH ĐƯỢC TÍCH CHỌN (L0 -> L6)");
 
         [RelayCommand]
-        private Task BuildCase11Async() => RunBuildModeAsync(-2, "TRƯỜNG HỢP 1.1 (+Y Mép Ngoài Phẳng)");
+        private Task BuildCase11Async() => RunBuildModeAsync(-2, "TH 1.1 (L0 => L1): Khớp góc +Y (Mép Ngoài Phẳng)");
 
         [RelayCommand]
-        private Task BuildCase12Async() => RunBuildModeAsync(-4, "TRƯỜNG HỢP 1.2 (+X Thu 1200x1200)");
+        private Task BuildCase12Async() => RunBuildModeAsync(-4, "TH 1.2 (L1 => L2): Khớp góc +X (Thu góc)");
 
         [RelayCommand]
-        private Task BuildCase13Async() => RunBuildModeAsync(-5, "TRƯỜNG HỢP 1.3 (-Y Giằng Thu Ngắn)");
+        private Task BuildCase13Async() => RunBuildModeAsync(-5, "TH 1.3 (L2 => L3): Khớp góc -Y (Giằng thu ngắn)");
 
         [RelayCommand]
-        private Task BuildCase14Async() => RunBuildModeAsync(-6, "TRƯỜNG HỢP 1.4 (+X Thu 1200x1200)");
+        private Task BuildCase14Async() => RunBuildModeAsync(-6, "TH 1.4 (L3 => L4): Khớp góc +X (Thu góc)");
 
         [RelayCommand]
-        private Task BuildCase21Async() => RunBuildModeAsync(-3, "TRƯỜNG HỢP 2.1 (+Y Vươn Ngoài)");
+        private Task BuildCase21Async() => RunBuildModeAsync(-3, "TH 2.1 (L4 => L5): Góc rẽ +Y (Vươn ngoài)");
 
         [RelayCommand]
-        private Task BuildCase22Async() => RunBuildModeAsync(-7, "TRƯỜNG HỢP 2.2 (+X Vươn Ngoài -Y)");
+        private Task BuildCase22Async() => RunBuildModeAsync(-7, "TH 2.2 (L5 => L6): Góc rẽ +X (Vươn ngoài -Y)");
     }
 }
