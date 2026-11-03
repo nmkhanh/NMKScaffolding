@@ -178,8 +178,8 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <!-- Cột List Nhịp: NxL,xxxx -->
-                            <DataGridTextColumn Header="List nhịp" Binding="{Binding BayList}" Width="*" IsReadOnly="True">
+                            <!-- Cột List Nhịp: 1800,2x1200,1800,3x1200,... -->
+                            <DataGridTextColumn Header="List nhịp" Binding="{Binding BayList, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="*" IsReadOnly="False">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -347,26 +347,26 @@
                                 <TextBlock Text="Kích thước góc nối (mm):" FontWeight="Bold" Foreground="#0F172A" FontSize="11" Margin="0,0,0,6"/>
                                 <Grid Margin="0,0,0,4">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="4"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="4"/>
+                                        <ColumnDefinition Width="72"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="L1 (Giàn 1)" FontSize="10" Foreground="#475569" Margin="0,0,0,2" HorizontalAlignment="Center"/>
-                                        <TextBox Text="{Binding ButtonL1, UpdateSourceTrigger=PropertyChanged}" Height="24" HorizontalContentAlignment="Center" FontSize="11"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2">
-                                        <TextBlock Text="L2 (Giàn 2)" FontSize="10" Foreground="#475569" Margin="0,0,0,2" HorizontalAlignment="Center"/>
-                                        <TextBox Text="{Binding ButtonL2, UpdateSourceTrigger=PropertyChanged}" Height="24" HorizontalContentAlignment="Center" FontSize="11"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="4">
-                                        <TextBlock Text="W (Rộng)" FontSize="10" Foreground="#475569" Margin="0,0,0,2" HorizontalAlignment="Center"/>
-                                        <TextBox Text="{Binding ButtonW, UpdateSourceTrigger=PropertyChanged}" Height="24" HorizontalContentAlignment="Center" FontSize="11"/>
-                                    </StackPanel>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="4"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="4"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="L1 (Giàn 1):" FontSize="11" Foreground="#475569" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ButtonL1, UpdateSourceTrigger=PropertyChanged}" Height="24" FontSize="11"
+                                             ToolTip="Chuỗi nhịp Giàn 1, VD: 1800,2x1200,1800,3x1200"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="L2 (Giàn 2):" FontSize="11" Foreground="#475569" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding ButtonL2, UpdateSourceTrigger=PropertyChanged}" Height="24" FontSize="11"
+                                             ToolTip="Chuỗi nhịp Giàn 2, VD: 1800,2x1200,1800,3x1200"/>
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="W (Rộng):" FontSize="11" Foreground="#475569" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding ButtonW, UpdateSourceTrigger=PropertyChanged}" Height="24" FontSize="11"/>
                                 </Grid>
-                                <TextBlock Text="• L1: nhịp giàn đầu • L2: nhịp giàn sau • W: rộng giàn" Foreground="#64748B" FontSize="10"/>
+                                <TextBlock Text="• L1, L2 dạng: 1800,2x1200,1800,3x1200,... • W: rộng giàn" Foreground="#64748B" FontSize="10"/>
                             </StackPanel>
                         </Border>
 

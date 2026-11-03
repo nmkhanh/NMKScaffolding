@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
@@ -17,6 +18,8 @@ namespace RevitScaffoldingTool
         public List<double> BayLengths { get; set; }
         public double L1 { get; set; }
         public double L2 { get; set; }
+        public List<double> L1Bays { get; set; }
+        public List<double> L2Bays { get; set; }
         public int Mode { get; set; }
         public string FamilyFolder { get; set; }
 
@@ -40,6 +43,8 @@ namespace RevitScaffoldingTool
             BayLengths = new List<double> { 1800, 1200, 1800, 1200, 1800 };
             L1 = 1800;
             L2 = 1800;
+            L1Bays = new List<double> { 1800 };
+            L2Bays = new List<double> { 1800 };
             Mode = -1;
             FamilyFolder = @"H:\My Drive\Family\New folder\Child";
             Post1Height = 0;
@@ -70,11 +75,75 @@ namespace RevitScaffoldingTool
         }
     }
 
-
-
     public static partial class ScaffoldingBuilder
     {
         public static double MmToFt(double mm) { return mm / 304.8; }
+
+        /// <summary>
+        /// Phân tích chuỗi nhịp dạng "1800,2x1200,1800,3x1200,..." thành danh sách chiều dài từng nhịp (mm).
+        /// </summary>
+        public static List<double> ParseBayLengths(string expr, double defaultLen = 1800.0)
+        {
+            var result = new List<double>();
+            if (!string.IsNullOrWhiteSpace(expr))
+            {
+                var tokens = expr.Split(new char[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var rawToken in tokens)
+                {
+                    string token = rawToken.Trim();
+                    if (string.IsNullOrEmpty(token)) continue;
+
+                    int xIdx = token.IndexOfAny(new char[] { 'x', 'X', '*' });
+                    if (xIdx > 0 && xIdx < token.Length - 1)
+                    {
+                        string countStr = token.Substring(0, xIdx).Trim();
+                        string lenStr = token.Substring(xIdx + 1).Trim();
+                        int count = 1;
+                        if (!int.TryParse(countStr, out count) || count <= 0) count = 1;
+
+                        double len = 0;
+                        if (double.TryParse(lenStr, NumberStyles.Any, CultureInfo.InvariantCulture, out len) && len > 0)
+                        {
+                            for (int k = 0; k < count; k++) result.Add(len);
+                        }
+                    }
+                    else
+                    {
+                        double len = 0;
+                        if (double.TryParse(token, NumberStyles.Any, CultureInfo.InvariantCulture, out len) && len > 0)
+                        {
+                            result.Add(len);
+                        }
+                    }
+                }
+            }
+
+            if (result.Count == 0)
+            {
+                result.Add(defaultLen > 0 ? defaultLen : 1800.0);
+            }
+            return result;
+        }
+
+        public static List<double> GetL1Bays(BuildOptions opts)
+        {
+            if (opts != null && opts.L1Bays != null && opts.L1Bays.Count > 0)
+            {
+                return opts.L1Bays;
+            }
+            double l1 = (opts != null && opts.L1 > 0) ? opts.L1 : 1800.0;
+            return new List<double> { l1 };
+        }
+
+        public static List<double> GetL2Bays(BuildOptions opts)
+        {
+            if (opts != null && opts.L2Bays != null && opts.L2Bays.Count > 0)
+            {
+                return opts.L2Bays;
+            }
+            double l2 = (opts != null && opts.L2 > 0) ? opts.L2 : 1800.0;
+            return new List<double> { l2 };
+        }
 
         public static double GetJackHeight(BuildOptions opts)
         {
@@ -360,6 +429,220 @@ namespace RevitScaffoldingTool
             }
         }
 
+        /// <summary>
+        /// Dựng tiếp các nhịp thứ 2 trở đi (j = 1 .. L2Bays.Count - 1) cho nhánh rẽ hướng +Y (TH 1.1, TH 1.2, TH 2.1).
+        /// </summary>
+        private static void BuildReturnContinuationBaysPositiveY(Document doc, Level level, List<int> placedIds,
+            FamilySymbol sym1, FamilySymbol sym2, FamilySymbol sym3, FamilySymbol sym4, FamilySymbol sym5, FamilySymbol sym6, FamilySymbol sym7,
+            double xLeft, double xRight, double yStartAfterFirstBay, double z0, double W, double jackH, int storyCount, double topZ,
+            List<double> l2Bays, BuildOptions opts)
+        {
+            if (l2Bays == null || l2Bays.Count <= 1) return;
+
+            double pw = GetPlankWidth(W);
+            double pOff = GetPlankOffset(W);
+            double curY = yStartAfterFirstBay;
+
+            for (int j = 1; j < l2Bays.Count; j++)
+            {
+                double L_j = l2Bays[j];
+                double yNext = curY + L_j;
+                bool isLastBay = (j == l2Bays.Count - 1);
+
+                var bb1 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xLeft), MmToFt(curY), MmToFt(z0)), 90, "l", L_j);
+                var bb2 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xRight), MmToFt(curY), MmToFt(z0)), 90, "l", L_j);
+                if (bb1 != null) placedIds.Add(bb1.Id.IntegerValue);
+                if (bb2 != null) placedIds.Add(bb2.Id.IntegerValue);
+
+                var jk1 = PlaceInstance(doc, sym2, level, new XYZ(MmToFt(xLeft), MmToFt(yNext), MmToFt(z0)), 0, "h", jackH);
+                var jk2 = PlaceInstance(doc, sym2, level, new XYZ(MmToFt(xRight), MmToFt(yNext), MmToFt(z0)), 0, "h", jackH);
+                if (jk1 != null) placedIds.Add(jk1.Id.IntegerValue);
+                if (jk2 != null) placedIds.Add(jk2.Id.IntegerValue);
+
+                PlaceConfiguredPosts(doc, sym3, level, placedIds, xLeft, yNext, z0 + jackH, opts);
+                PlaceConfiguredPosts(doc, sym3, level, placedIds, xRight, yNext, z0 + jackH, opts);
+
+                double zH1 = z0 + jackH + 135;
+                var lgF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(curY), MmToFt(zH1)), 90, "l", L_j);
+                var lgF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xRight), MmToFt(curY), MmToFt(zH1)), 90, "l", L_j);
+                var trF  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(yNext), MmToFt(zH1)), 0, "l", W);
+                if (lgF1 != null) placedIds.Add(lgF1.Id.IntegerValue);
+                if (lgF2 != null) placedIds.Add(lgF2.Id.IntegerValue);
+                if (trF  != null) placedIds.Add(trF.Id.IntegerValue);
+
+                if (opts != null && opts.HasTopTransom)
+                {
+                    var lgT1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(curY), MmToFt(topZ)), 90, "l", L_j);
+                    var lgT2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xRight), MmToFt(curY), MmToFt(topZ)), 90, "l", L_j);
+                    var trT  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(yNext), MmToFt(topZ)), 0, "l", W);
+                    if (lgT1 != null) placedIds.Add(lgT1.Id.IntegerValue);
+                    if (lgT2 != null) placedIds.Add(lgT2.Id.IntegerValue);
+                    if (trT  != null) placedIds.Add(trT.Id.IntegerValue);
+                }
+
+                for (int s = 0; s < storyCount; s++)
+                {
+                    double sOff = s * 1800.0;
+                    double zH3 = z0 + jackH + 830 + sOff;
+                    double zDeck = z0 + jackH + 1730 + sOff;
+                    double zH6 = z0 + jackH + 2180 + sOff;
+                    double zH7 = z0 + jackH + 2630 + sOff;
+
+                    var lgM1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(curY), MmToFt(zH3)), 90, "l", L_j);
+                    if (lgM1 != null) placedIds.Add(lgM1.Id.IntegerValue);
+
+                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xRight, curY, 90, L_j, z0, jackH, s, storyCount, opts);
+
+                    var trD = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(yNext), MmToFt(zDeck)), 0, "l", W);
+                    if (trD != null) placedIds.Add(trD.Id.IntegerValue);
+
+                    if (sym6 != null)
+                    {
+                        var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xLeft + pOff), MmToFt(curY), MmToFt(zDeck)), 90, "l", L_j);
+                        var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xRight - pOff), MmToFt(curY), MmToFt(zDeck)), 90, "l", L_j);
+                        if (pl1 != null) { SetParam(pl1, "w", pw); placedIds.Add(pl1.Id.IntegerValue); }
+                        if (pl2 != null) { SetParam(pl2, "w", pw); placedIds.Add(pl2.Id.IntegerValue); }
+                    }
+
+                    if (sym7 != null)
+                    {
+                        var tbL = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xLeft + 66), MmToFt(curY), MmToFt(zDeck)), 90, "l", L_j);
+                        var tbR = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xRight - 66), MmToFt(curY), MmToFt(zDeck)), 90, "l", L_j);
+                        if (tbL != null) placedIds.Add(tbL.Id.IntegerValue);
+                        if (tbR != null) placedIds.Add(tbR.Id.IntegerValue);
+
+                        if (isLastBay)
+                        {
+                            var tbEnd = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xLeft), MmToFt(yNext), MmToFt(zDeck)), 0, "l", W);
+                            if (tbEnd != null) placedIds.Add(tbEnd.Id.IntegerValue);
+                        }
+                    }
+
+                    var rL1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(curY), MmToFt(zH6)), 90, "l", L_j);
+                    var rL2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(curY), MmToFt(zH7)), 90, "l", L_j);
+                    if (rL1 != null) placedIds.Add(rL1.Id.IntegerValue);
+                    if (rL2 != null) placedIds.Add(rL2.Id.IntegerValue);
+
+                    if (isLastBay)
+                    {
+                        var rE1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(yNext), MmToFt(zH6)), 0, "l", W);
+                        var rE2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(yNext), MmToFt(zH7)), 0, "l", W);
+                        if (rE1 != null) placedIds.Add(rE1.Id.IntegerValue);
+                        if (rE2 != null) placedIds.Add(rE2.Id.IntegerValue);
+                    }
+                }
+
+                curY = yNext;
+            }
+        }
+
+        /// <summary>
+        /// Dựng tiếp các nhịp thứ 2 trở đi (j = 1 .. L2Bays.Count - 1) cho nhánh rẽ hướng -Y (TH 1.3, TH 1.4, TH 2.2).
+        /// </summary>
+        private static void BuildReturnContinuationBaysNegativeY(Document doc, Level level, List<int> placedIds,
+            FamilySymbol sym1, FamilySymbol sym2, FamilySymbol sym3, FamilySymbol sym4, FamilySymbol sym5, FamilySymbol sym6, FamilySymbol sym7,
+            double xLeft, double xRight, double yStartAfterFirstBay, double z0, double W, double jackH, int storyCount, double topZ,
+            List<double> l2Bays, BuildOptions opts)
+        {
+            if (l2Bays == null || l2Bays.Count <= 1) return;
+
+            double pw = GetPlankWidth(W);
+            double pOff = GetPlankOffset(W);
+            double curY = yStartAfterFirstBay;
+
+            for (int j = 1; j < l2Bays.Count; j++)
+            {
+                double L_j = l2Bays[j];
+                double yNext = curY - L_j;
+                bool isLastBay = (j == l2Bays.Count - 1);
+
+                var bb1 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xLeft), MmToFt(curY), MmToFt(z0)), -90, "l", L_j);
+                var bb2 = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xRight), MmToFt(curY), MmToFt(z0)), -90, "l", L_j);
+                if (bb1 != null) placedIds.Add(bb1.Id.IntegerValue);
+                if (bb2 != null) placedIds.Add(bb2.Id.IntegerValue);
+
+                var jk1 = PlaceInstance(doc, sym2, level, new XYZ(MmToFt(xLeft), MmToFt(yNext), MmToFt(z0)), 0, "h", jackH);
+                var jk2 = PlaceInstance(doc, sym2, level, new XYZ(MmToFt(xRight), MmToFt(yNext), MmToFt(z0)), 0, "h", jackH);
+                if (jk1 != null) placedIds.Add(jk1.Id.IntegerValue);
+                if (jk2 != null) placedIds.Add(jk2.Id.IntegerValue);
+
+                PlaceConfiguredPosts(doc, sym3, level, placedIds, xLeft, yNext, z0 + jackH, opts);
+                PlaceConfiguredPosts(doc, sym3, level, placedIds, xRight, yNext, z0 + jackH, opts);
+
+                double zH1 = z0 + jackH + 135;
+                var lgF1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(curY), MmToFt(zH1)), -90, "l", L_j);
+                var lgF2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xRight), MmToFt(curY), MmToFt(zH1)), -90, "l", L_j);
+                var trF  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(yNext), MmToFt(zH1)), 0, "l", W);
+                if (lgF1 != null) placedIds.Add(lgF1.Id.IntegerValue);
+                if (lgF2 != null) placedIds.Add(lgF2.Id.IntegerValue);
+                if (trF  != null) placedIds.Add(trF.Id.IntegerValue);
+
+                if (opts != null && opts.HasTopTransom)
+                {
+                    var lgT1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(curY), MmToFt(topZ)), -90, "l", L_j);
+                    var lgT2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xRight), MmToFt(curY), MmToFt(topZ)), -90, "l", L_j);
+                    var trT  = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(yNext), MmToFt(topZ)), 0, "l", W);
+                    if (lgT1 != null) placedIds.Add(lgT1.Id.IntegerValue);
+                    if (lgT2 != null) placedIds.Add(lgT2.Id.IntegerValue);
+                    if (trT  != null) placedIds.Add(trT.Id.IntegerValue);
+                }
+
+                for (int s = 0; s < storyCount; s++)
+                {
+                    double sOff = s * 1800.0;
+                    double zH3 = z0 + jackH + 830 + sOff;
+                    double zDeck = z0 + jackH + 1730 + sOff;
+                    double zH6 = z0 + jackH + 2180 + sOff;
+                    double zH7 = z0 + jackH + 2630 + sOff;
+
+                    var lgM2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xRight), MmToFt(curY), MmToFt(zH3)), -90, "l", L_j);
+                    if (lgM2 != null) placedIds.Add(lgM2.Id.IntegerValue);
+
+                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xLeft, curY, -90, L_j, z0, jackH, s, storyCount, opts);
+
+                    var trD = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(yNext), MmToFt(zDeck)), 0, "l", W);
+                    if (trD != null) placedIds.Add(trD.Id.IntegerValue);
+
+                    if (sym6 != null)
+                    {
+                        var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xLeft + pOff), MmToFt(curY), MmToFt(zDeck)), -90, "l", L_j);
+                        var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(xRight - pOff), MmToFt(curY), MmToFt(zDeck)), -90, "l", L_j);
+                        if (pl1 != null) { SetParam(pl1, "w", pw); placedIds.Add(pl1.Id.IntegerValue); }
+                        if (pl2 != null) { SetParam(pl2, "w", pw); placedIds.Add(pl2.Id.IntegerValue); }
+                    }
+
+                    if (sym7 != null)
+                    {
+                        var tbL = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xLeft + 66), MmToFt(curY), MmToFt(zDeck)), -90, "l", L_j);
+                        var tbR = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xRight - 66), MmToFt(curY), MmToFt(zDeck)), -90, "l", L_j);
+                        if (tbL != null) placedIds.Add(tbL.Id.IntegerValue);
+                        if (tbR != null) placedIds.Add(tbR.Id.IntegerValue);
+
+                        if (isLastBay)
+                        {
+                            var tbEnd = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xLeft), MmToFt(yNext), MmToFt(zDeck)), 0, "l", W);
+                            if (tbEnd != null) placedIds.Add(tbEnd.Id.IntegerValue);
+                        }
+                    }
+
+                    var rR1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xRight), MmToFt(curY), MmToFt(zH6)), -90, "l", L_j);
+                    var rR2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xRight), MmToFt(curY), MmToFt(zH7)), -90, "l", L_j);
+                    if (rR1 != null) placedIds.Add(rR1.Id.IntegerValue);
+                    if (rR2 != null) placedIds.Add(rR2.Id.IntegerValue);
+
+                    if (isLastBay)
+                    {
+                        var rE1 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(yNext), MmToFt(zH6)), 0, "l", W);
+                        var rE2 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xLeft), MmToFt(yNext), MmToFt(zH7)), 0, "l", W);
+                        if (rE1 != null) placedIds.Add(rE1.Id.IntegerValue);
+                        if (rE2 != null) placedIds.Add(rE2.Id.IntegerValue);
+                    }
+                }
+
+                curY = yNext;
+            }
+        }
+
         public static double GetPlankWidth(double bayWidth)
         {
             double w = bayWidth > 0 ? bayWidth : 1200.0;
@@ -394,41 +677,35 @@ namespace RevitScaffoldingTool
             switch ((int)height)
             {
                 case 225:
-                    // 支柱225: 1 đĩa tại 155
                     SetParam(inst, "h1", 155);
                     for (int i = 2; i <= 15; i++) SetParam(inst, "h" + i, 0);
                     break;
                 case 450:
                     if (isBottomPost)
                     {
-                        // 450根がらみ用 (chân giàn có đĩa giằng chân 135 & 380)
                         SetParam(inst, "h1", 135);
                         SetParam(inst, "h2", 380);
                         for (int i = 3; i <= 15; i++) SetParam(inst, "h" + i, 0);
                     }
                     else
                     {
-                        // 450中間用 (đoạn nối giữa chỉ có 1 đĩa 380)
                         SetParam(inst, "h1", 380);
                         for (int i = 2; i <= 15; i++) SetParam(inst, "h" + i, 0);
                     }
                     break;
                 case 675:
-                    // 支柱675: 3 đĩa tại 155, 380, 605
                     SetParam(inst, "h1", 155);
                     SetParam(inst, "h2", 380);
                     SetParam(inst, "h3", 605);
                     for (int i = 4; i <= 15; i++) SetParam(inst, "h" + i, 0);
                     break;
                 case 900:
-                    // 支柱900: 3 đĩa tại 135, 380, 830
                     SetParam(inst, "h1", 135);
                     SetParam(inst, "h2", 380);
                     SetParam(inst, "h3", 830);
                     for (int i = 4; i <= 15; i++) SetParam(inst, "h" + i, 0);
                     break;
                 case 1350:
-                    // 支柱1350: 4 đĩa tại 135, 380, 830, 1280
                     SetParam(inst, "h1", 135);
                     SetParam(inst, "h2", 380);
                     SetParam(inst, "h3", 830);
@@ -436,7 +713,6 @@ namespace RevitScaffoldingTool
                     for (int i = 5; i <= 15; i++) SetParam(inst, "h" + i, 0);
                     break;
                 case 1800:
-                    // 支柱1800 (Chuẩn CAD ALINCO): 4 đĩa, bắt đầu từ 380 (không có đĩa 135)
                     SetParam(inst, "h1", 380);
                     SetParam(inst, "h2", 830);
                     SetParam(inst, "h3", 1280);
@@ -444,11 +720,9 @@ namespace RevitScaffoldingTool
                     for (int i = 5; i <= 15; i++) SetParam(inst, "h" + i, 0);
                     break;
                 case 2700:
-                    // 支柱2700: 7 đĩa tại 135, 380, 830, 1280, 1730, 2180, 2630
                     ConfigureAlinco2700(inst);
                     break;
                 case 3600:
-                    // 支柱3600 (Chuẩn CAD ALINCO): 8 đĩa, bắt đầu từ 380 (không có đĩa 135)
                     SetParam(inst, "h1", 380);
                     SetParam(inst, "h2", 830);
                     SetParam(inst, "h3", 1280);
@@ -482,7 +756,6 @@ namespace RevitScaffoldingTool
             double totalPostH = GetTotalPostHeight(opts);
             double colTopZ = z0 + jackH + totalPostH;
 
-            // 1. Chỉ giằng chéo dưới cùng mới đặt tại h2 (380 mm) - chỉ đặt 1 lần ở tầng đáy (s == 0)
             if (s == 0)
             {
                 double zH2 = z0 + jackH + 380.0;
@@ -493,7 +766,6 @@ namespace RevitScaffoldingTool
                 }
             }
 
-            // 2. Giằng chéo các tầng luôn đặt cùng cao độ mâm (zDeck = 1730 + s * 1800)
             double zDeck = z0 + jackH + 1730.0 + s * 1800.0;
             if (opts == null || !opts.IsFromData || zDeck + 900.0 <= colTopZ + 10.0)
             {
@@ -523,7 +795,6 @@ namespace RevitScaffoldingTool
         private static void PlaceConfiguredPosts(Document doc, FamilySymbol sym3, Level level, List<int> placedIds, double cx, double cy, double baseZ, BuildOptions opts)
         {
             if (sym3 == null) return;
-            // Nếu không phải From Data -> Dùng mặc định ALINCO 2700
             if (opts == null || !opts.IsFromData)
             {
                 var col = PlaceInstance(doc, sym3, level, new XYZ(MmToFt(cx), MmToFt(cy), MmToFt(baseZ)), 0, null, 0);
@@ -531,7 +802,6 @@ namespace RevitScaffoldingTool
                 return;
             }
 
-            // From Data: Chỉ đặt khi người dùng nhập chiều cao > 0 (nếu là 0 thì không đặt cột)
             double curZ = baseZ;
             if (opts.Post1Height > 0)
             {

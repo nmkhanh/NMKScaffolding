@@ -22,5 +22,10 @@ namespace RevitScaffoldingTool.ViewModels
         [ObservableProperty] private double _endY = 0;
         [ObservableProperty] private double _endZ = 0;
         [ObservableProperty] private double _angleDeg = 0;
+
+        partial void OnBayListChanged(string value)
+        {
+            BayLengths = ScaffoldingBuilder.ParseBayLengths(value, 1800.0);
+        }
     }
 }

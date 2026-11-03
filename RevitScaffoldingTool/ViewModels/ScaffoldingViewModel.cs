@@ -43,9 +43,9 @@ namespace RevitScaffoldingTool.ViewModels
         // Tùy chọn chạy theo dữ liệu nhập (From data) — ÁP DỤNG RIÊNG CHO NHÓM NÚT BÊN PHẢI
         [ObservableProperty] private bool _isFromData = true;
 
-        // Thông số nhịp & bề rộng riêng cho nhóm Button bên phải
-        [ObservableProperty] private double _buttonL1 = 1800.0;
-        [ObservableProperty] private double _buttonL2 = 1800.0;
+        // Thông số nhịp & bề rộng riêng cho nhóm Button bên phải (L1, L2 hỗ trợ dạng "1800,2x1200,1800,3x1200,...")
+        [ObservableProperty] private string _buttonL1 = "1800";
+        [ObservableProperty] private string _buttonL2 = "1800";
         [ObservableProperty] private double _buttonW = 1200.0;
 
         // Trạng thái thực thi
@@ -74,8 +74,8 @@ namespace RevitScaffoldingTool.ViewModels
                 StoryCount = s.StoryCount > 0 ? s.StoryCount : 1;
                 HasTopTransom = s.HasTopTransom;
                 IsFromData = s.IsFromData;
-                ButtonL1 = s.ButtonL1 > 0 ? s.ButtonL1 : 1800.0;
-                ButtonL2 = s.ButtonL2 > 0 ? s.ButtonL2 : 1800.0;
+                ButtonL1 = !string.IsNullOrWhiteSpace(s.ButtonL1) ? s.ButtonL1 : "1800";
+                ButtonL2 = !string.IsNullOrWhiteSpace(s.ButtonL2) ? s.ButtonL2 : "1800";
                 ButtonW = s.ButtonW > 0 ? s.ButtonW : 1200.0;
             }
             catch
@@ -100,8 +100,8 @@ namespace RevitScaffoldingTool.ViewModels
                 s.StoryCount = StoryCount;
                 s.HasTopTransom = HasTopTransom;
                 s.IsFromData = IsFromData;
-                s.ButtonL1 = ButtonL1;
-                s.ButtonL2 = ButtonL2;
+                s.ButtonL1 = !string.IsNullOrWhiteSpace(ButtonL1) ? ButtonL1 : "1800";
+                s.ButtonL2 = !string.IsNullOrWhiteSpace(ButtonL2) ? ButtonL2 : "1800";
                 s.ButtonW = ButtonW;
                 s.Save();
             }
@@ -112,13 +112,16 @@ namespace RevitScaffoldingTool.ViewModels
 
         /// <summary>
         /// Tạo cấu hình thực thi cho nhóm Button bên phải (tuân thủ Checkbox IsFromData).
+        /// Hỗ trợ L1, L2 dạng chuỗi nhiều nhịp: "1800,2x1200,1800,3x1200,...".
         /// </summary>
         private BuildOptions CreateOptionsForButtons(int mode)
         {
             SaveSettings();
 
-            double l1 = ButtonL1 > 0 ? ButtonL1 : 1800.0;
-            double l2 = ButtonL2 > 0 ? ButtonL2 : 1800.0;
+            List<double> l1Bays = ScaffoldingBuilder.ParseBayLengths(ButtonL1, 1800.0);
+            List<double> l2Bays = ScaffoldingBuilder.ParseBayLengths(ButtonL2, 1800.0);
+            double l1Last = l1Bays[l1Bays.Count - 1];
+            double l2First = l2Bays[0];
             double w = ButtonW > 0 ? ButtonW : 1200.0;
 
             if (!IsFromData)
@@ -130,10 +133,12 @@ namespace RevitScaffoldingTool.ViewModels
                     Y0 = 0.0,
                     Z0 = 0.0,
                     BayWidth = w,
-                    L1 = l1,
-                    L2 = l2,
+                    L1 = l1Last,
+                    L2 = l2First,
+                    L1Bays = l1Bays,
+                    L2Bays = l2Bays,
                     JackHeight = 250.0,
-                    BayLengths = new List<double> { l1 },
+                    BayLengths = new List<double>(l1Bays),
                     FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
                     Mode = mode,
                     IsFromData = false,
@@ -156,10 +161,12 @@ namespace RevitScaffoldingTool.ViewModels
                     Y0 = 0.0,
                     Z0 = ElevationZ,
                     BayWidth = w,
-                    L1 = l1,
-                    L2 = l2,
+                    L1 = l1Last,
+                    L2 = l2First,
+                    L1Bays = l1Bays,
+                    L2Bays = l2Bays,
                     JackHeight = JackHeight,
-                    BayLengths = new List<double> { l1 },
+                    BayLengths = new List<double>(l1Bays),
                     FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
                     Mode = mode,
                     IsFromData = true,
@@ -282,7 +289,7 @@ namespace RevitScaffoldingTool.ViewModels
                                     if (pLi != null && pLi.HasValue) lMm = Math.Round(pLi.AsDouble() * 304.8, 0);
                                 }
 
-                                bayParts.Add(string.Format("{0}x{1}", n, lMm));
+                                bayParts.Add(n == 1 ? string.Format("{0}", lMm) : string.Format("{0}x{1}", n, lMm));
                                 for (int k = 0; k < n; k++) bayLengths.Add(lMm);
                             }
                         }
@@ -324,7 +331,7 @@ namespace RevitScaffoldingTool.ViewModels
                         {
                             Stt = idx++,
                             ElementId = inst.Id.IntegerValue.ToString(),
-                            BayList = bayParts.Count > 0 ? string.Join(", ", bayParts) : "1x1800",
+                            BayList = bayParts.Count > 0 ? string.Join(",", bayParts) : "1800",
                             ConnectCase = defaultCase,
                             Length = len,
                             Width = w > 0 ? w : 1200,

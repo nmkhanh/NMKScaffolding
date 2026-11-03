@@ -98,17 +98,17 @@ namespace RevitScaffoldingTool.Properties
 
         [UserScopedSetting]
         [DefaultSettingValue("1800")]
-        public double ButtonL1
+        public string ButtonL1
         {
-            get => (double)this[nameof(ButtonL1)];
+            get => (string)this[nameof(ButtonL1)];
             set => this[nameof(ButtonL1)] = value;
         }
 
         [UserScopedSetting]
         [DefaultSettingValue("1800")]
-        public double ButtonL2
+        public string ButtonL2
         {
-            get => (double)this[nameof(ButtonL2)];
+            get => (string)this[nameof(ButtonL2)];
             set => this[nameof(ButtonL2)] = value;
         }
 
