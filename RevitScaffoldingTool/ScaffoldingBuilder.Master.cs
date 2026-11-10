@@ -992,6 +992,7 @@ namespace RevitScaffoldingTool
             if (s.Contains("1.4")) return "TH 1.4";
             if (s.Contains("2.1")) return "TH 2.1";
             if (s.Contains("2.2")) return "TH 2.2";
+            if (s.Contains("3.1")) return "TH 3.1";
             return "TH 0";
         }
 
@@ -2810,6 +2811,27 @@ namespace RevitScaffoldingTool
                     }
                     PlaceLocalTransom(curLx);
                 }
+                else if (conn == "TH 3.1")
+                {
+                    // Với TH 3.1: Dãy chính chạy thẳng liên tục qua ngã ba
+                    for (int b = startBayIdx; b < curBays.Count; b++)
+                    {
+                        BuildLocalStandardBay(curLx, curBays[b]);
+                        curLx += curBays[b];
+                    }
+                    CloseLocalGable(curLx, false);
+
+                    // Cấy cột phụ cho ngã ba tại mép trước (ly = 0):
+                    double sJunc = curBays[0];
+                    if (nextRow != null && nextRow.HasCoords && curRow.HasCoords)
+                    {
+                        double relStartX = nextRow.StartX - ox;
+                        double relStartY = nextRow.StartY - oy;
+                        sJunc = relStartX * cosA + relStartY * sinA;
+                    }
+                    EnsureLocalCol(sJunc, 0.0);
+                    EnsureLocalCol(sJunc + wNext, 0.0);
+                }
                 else
                 {
                     // Với góc thu trong (TH 1.1, TH 1.2, TH 1.3, TH 1.4): dựng các nhịp thẳng trước nhịp cuối, nhịp cuối cắt mở cửa ngõ W_next
@@ -2968,6 +2990,13 @@ namespace RevitScaffoldingTool
                     fallbackOx = ox + nextLx * cosA;
                     fallbackOy = oy + nextLx * sinA;
                     fallbackTheta = thetaDeg - 90.0;
+                }
+                else if (conn == "TH 3.1")
+                {
+                    double sJunc = curBays[0];
+                    fallbackOx = ox + sJunc * cosA;
+                    fallbackOy = oy + sJunc * sinA;
+                    fallbackTheta = thetaDeg + 90.0;
                 }
             }
 

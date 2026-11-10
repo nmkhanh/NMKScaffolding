@@ -516,7 +516,7 @@
                         </Grid>
 
                         <!-- TH 2.2: CheckBox 6 + Button -->
-                        <Grid Margin="0,0,0,2">
+                        <Grid Margin="0,0,0,5">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="28"/>
                                 <ColumnDefinition Width="*"/>
@@ -526,6 +526,20 @@
                             <Button Grid.Column="1" Content="TH 2.2 (L5 ⇒ L6): Góc rẽ +X (Vươn ngoài)" 
                                     Command="{Binding BuildCase22Command}" 
                                     Height="32" Background="#3B0764"/>
+                        </Grid>
+
+                        <!-- TH 3.1: CheckBox 7 + Button -->
+                        <Grid Margin="0,0,0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="28"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0" IsChecked="{Binding CheckCase31, Mode=TwoWay}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                      ToolTip="Bật/Tắt TH 3.1 (dự phòng)"/>
+                            <Button Grid.Column="1" Content="TH 3.1 (L0 ⇒ L1): Khớp Ngã Ba Chữ T (T-Junction)" 
+                                    Command="{Binding BuildCase31Command}" 
+                                    Height="32" Background="#0D9488"
+                                    ToolTip="TH 3.1: Dãy chính chạy thẳng liên tục qua ngã ba; Nhánh rẽ đâm vuông góc +Y về bên phải đường tim (W = 1200 mm)."/>
                         </Grid>
 
                     </StackPanel>

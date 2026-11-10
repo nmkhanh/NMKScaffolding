@@ -20,7 +20,7 @@ namespace RevitScaffoldingTool.ViewModels
         // Bảng hệ giàn (DataGrid - Cột Trái)
         public ObservableCollection<BayRowModel> BayRows { get; } = new ObservableCollection<BayRowModel>();
         [ObservableProperty] private BayRowModel _selectedBayRow;
-        public List<string> ConnectCases { get; } = new List<string> { "TH 0", "TH 1.1", "TH 1.2", "TH 1.3", "TH 1.4", "TH 2.1", "TH 2.2" };
+        public List<string> ConnectCases { get; } = new List<string> { "TH 0", "TH 1.1", "TH 1.2", "TH 1.3", "TH 1.4", "TH 2.1", "TH 2.2", "TH 3.1" };
 
         // Vị trí, Chân chống & Cao độ Z (Cột Giữa - Data)
         [ObservableProperty] private double _elevationZ = 0.0;
@@ -54,13 +54,14 @@ namespace RevitScaffoldingTool.ViewModels
         [ObservableProperty] private string _buttonL6 = "1800,2x1800";
         [ObservableProperty] private double _buttonW = 1200.0;
 
-        // 6 CheckBox cho 6 trường hợp (mặc định true) dùng cho nút Master chạy nối tiếp (Continue)
+        // 6 CheckBox cho các trường hợp (mặc định true) dùng cho nút Master chạy nối tiếp (Continue)
         [ObservableProperty] private bool _checkCase11 = true;
         [ObservableProperty] private bool _checkCase12 = true;
         [ObservableProperty] private bool _checkCase13 = true;
         [ObservableProperty] private bool _checkCase14 = true;
         [ObservableProperty] private bool _checkCase21 = true;
         [ObservableProperty] private bool _checkCase22 = true;
+        [ObservableProperty] private bool _checkCase31 = true;
 
         // Trạng thái thực thi
         [ObservableProperty] private string _statusMessage = "Sẵn sàng thi công giàn giáo ALINCO (Dark Theme).";
@@ -126,6 +127,7 @@ namespace RevitScaffoldingTool.ViewModels
                 CheckCase14 = s.CheckCase14;
                 CheckCase21 = s.CheckCase21;
                 CheckCase22 = s.CheckCase22;
+                CheckCase31 = s.CheckCase31;
             }
             catch
             {
@@ -165,6 +167,7 @@ namespace RevitScaffoldingTool.ViewModels
                 s.CheckCase14 = CheckCase14;
                 s.CheckCase21 = CheckCase21;
                 s.CheckCase22 = CheckCase22;
+                s.CheckCase31 = CheckCase31;
                 s.Save();
             }
             catch
@@ -223,6 +226,10 @@ namespace RevitScaffoldingTool.ViewModels
                     caseL1Bays = l5Bays;
                     caseL2Bays = l6Bays;
                     break;
+                case -10: // TH 3.1: Ngã ba chữ T (Dãy chính L0Bays, Nhánh rẽ L1Bays)
+                    caseL1Bays = l0Bays;
+                    caseL2Bays = l1Bays;
+                    break;
             }
 
             double l1Last = caseL1Bays[caseL1Bays.Count - 1];
@@ -268,6 +275,7 @@ namespace RevitScaffoldingTool.ViewModels
                 CheckCase14 = CheckCase14,
                 CheckCase21 = CheckCase21,
                 CheckCase22 = CheckCase22,
+                CheckCase31 = CheckCase31,
                 JackHeight = IsFromData ? JackHeight : 250.0,
                 BayLengths = new List<double>(caseL1Bays),
                 FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
@@ -515,6 +523,13 @@ namespace RevitScaffoldingTool.ViewModels
             // - Khi rẽ phải (cross < 0): pháp tuyến phải của B ngược chiều uA -> B chiếm [s - wB, s]
             double sMid = (cross > 0) ? (s + 0.5 * wB) : (s - 0.5 * wB);
 
+            // Kiểm tra trường hợp ngã ba chữ T (TH 3.1):
+            // Điểm bắt đầu dãy B nằm trên thân dãy A
+            if (s >= -200.0 && s < totalBayLenA - wB - 100.0)
+            {
+                return "TH 3.1";
+            }
+
             // Kiểm tra vị trí dọc sMid phải nằm gần cuối dãy A (trong nhịp cuối hoặc vươn ra ngoài đầu dãy A)
             if (sMid < totalBayLenA - wB - 400.0 || sMid > totalBayLenA + wB + 400.0) return "TH 0";
 
@@ -735,5 +750,8 @@ namespace RevitScaffoldingTool.ViewModels
 
         [RelayCommand]
         private Task BuildCase22Async() => RunBuildModeAsync(-7, "TH 2.2 (L5 => L6): Góc rẽ +X (Vươn ngoài -Y)");
+
+        [RelayCommand]
+        private Task BuildCase31Async() => RunBuildModeAsync(-10, "TH 3.1 (L0 ⇒ L1): Khớp Ngã Ba Chữ T (T-Junction)");
     }
 }

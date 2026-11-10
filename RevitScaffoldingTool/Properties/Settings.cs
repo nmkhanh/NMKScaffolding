@@ -207,5 +207,13 @@ namespace RevitScaffoldingTool.Properties
             get => (bool)this[nameof(CheckCase22)];
             set => this[nameof(CheckCase22)] = value;
         }
+
+        [UserScopedSetting]
+        [DefaultSettingValue("True")]
+        public bool CheckCase31
+        {
+            get => (bool)this[nameof(CheckCase31)];
+            set => this[nameof(CheckCase31)] = value;
+        }
     }
 }
