@@ -206,7 +206,7 @@ namespace RevitScaffoldingTool
                 }
             }
 
-            return string.Format("Dựng thành công TH 3.1: Khớp nối ngã ba chữ T (T-Junction) tại X = {0:F0} mm (Nhánh rẽ vươn đến Y = {1:F0} mm).", xJunc, yTop);
+            return null;
         }
 
         /// <summary>
@@ -431,7 +431,7 @@ namespace RevitScaffoldingTool
                 }
             }
 
-            return string.Format("Dựng thành công TH 3.2: Khớp nối ngã ba chữ T (Ô vuông 1200x1200 - Không cấy cột phụ) tại X = {0:F0} mm.", xJunc);
+            return null;
         }
 
         /// <summary>
@@ -701,7 +701,7 @@ namespace RevitScaffoldingTool
                 }
             }
 
-            return string.Format("Dựng thành công TH 3.3: Khớp nối ngã ba chữ T (Lệch phải nhịp 1800 - Cấy cột trái) tại X = {0:F0} mm.", xL);
+            return null;
         }
     }
 }
