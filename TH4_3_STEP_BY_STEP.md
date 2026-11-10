@@ -58,6 +58,11 @@ Tài liệu này phân rã toàn bộ logic hình học và mã nguồn C# thự
      - Dãy chính: Mặt trước ($Y = y_0$).
      - Nhánh rẽ B: **VÁCH PHẢI ($X = x_R$)** $\implies$ **Bố trí Giằng dọc Family 4** (lan can bảo vệ kép $h_6, h_7$, giằng giữa $h_3$).
    - **Đầu hồi đỉnh ($Y = y_{\text{Top}}$)**: Khóa kín an toàn với lan can kép $h_6, h_7$, toeboard và giằng đỉnh tại `topZ` (chỉ 1 lần, triệt tiêu đè trùng).
+5. **Điều Kiện Quét Nhận Diện Tự Động Trong Revit**:
+   - Dãy chính (Row A): Nhịp $1800$ mm, có khoảng cách cửa ngõ lùi sang trái.
+   - Nhánh rẽ B (Row B): Đường DetailLine xanh nằm ở **VÁCH PHẢI ($X = x_R$)**.
+   - Tọa độ chiếu $s$ thỏa mãn: $|s - C_{k+1}| \le 150$ mm và $(s - W) > C_k + 200$ mm $\implies$ Tự động phát hiện **TH 4.3**.
+   - Khi chạy Table Run, gốc Row B tự động tịnh tiến sang vách trái $ox = x_R - W \sin\theta$ để khớp nối 100% với cửa ngõ Row 0.
 
 ---
 

@@ -258,6 +258,18 @@ namespace RevitScaffoldingTool.ViewModels
                     caseL1Bays = l0Bays;
                     caseL2Bays = l1Bays;
                     break;
+                case -13: // TH 4.1: Ngã ba chữ T Mirrored (Dãy chính L0Bays, Nhánh rẽ L1Bays)
+                    caseL1Bays = l0Bays;
+                    caseL2Bays = l1Bays;
+                    break;
+                case -14: // TH 4.2: Ngã ba chữ T Mirrored ô vuông 1200x1200 (Dãy chính L0Bays, Nhánh rẽ L1Bays)
+                    caseL1Bays = (l0Bays.Count >= 3) ? l0Bays : new List<double> { 1800.0, w, 1800.0 };
+                    caseL2Bays = l1Bays;
+                    break;
+                case -15: // TH 4.3: Ngã ba chữ T Mirrored lệch phải nhịp 1800 (Dãy chính L0Bays, Nhánh rẽ L1Bays)
+                    caseL1Bays = l0Bays;
+                    caseL2Bays = l1Bays;
+                    break;
             }
 
             double l1Last = caseL1Bays[caseL1Bays.Count - 1];
@@ -305,6 +317,9 @@ namespace RevitScaffoldingTool.ViewModels
                 CheckCase31 = CheckCase31,
                 CheckCase32 = CheckCase32,
                 CheckCase33 = CheckCase33,
+                CheckCase41 = CheckCase41,
+                CheckCase42 = CheckCase42,
+                CheckCase43 = CheckCase43,
                 JackHeight = IsFromData ? JackHeight : 250.0,
                 BayLengths = new List<double>(caseL1Bays),
                 FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
@@ -548,46 +563,73 @@ namespace RevitScaffoldingTool.ViewModels
             if (d < -wA - 400.0 || d > wA + 400.0) return "TH 0";
 
             // Tọa độ tâm bề rộng giàn B chiếu lên phương dọc của giàn A:
-            // - Khi rẽ trái (cross > 0): pháp tuyến phải của B cùng chiều uA -> B chiếm [s, s + wB]
-            // - Khi rẽ phải (cross < 0): pháp tuyến phải của B ngược chiều uA -> B chiếm [s - wB, s]
             double sMid = (cross > 0) ? (s + 0.5 * wB) : (s - 0.5 * wB);
 
-            // Kiểm tra trường hợp ngã ba chữ T (TH 3.1, TH 3.2 & TH 3.3):
-            // Điểm bắt đầu dãy B nằm trên thân dãy A
-            if (s >= -200.0 && s < totalBayLenA - wB - 100.0)
+            // 1. Phân tích các cột mốc nhịp của dãy A
+            var colPositions = new List<double> { 0.0 };
+            double accCol = 0.0;
+            if (rowA.BayLengths != null && rowA.BayLengths.Count > 0)
             {
-                // Kiểm tra xem nhịp tại vị trí s có phải là ô vuông (L ~ wB = 1200 mm) không:
-                double acc = 0.0;
-                double matchedBay = 1800.0;
-                double bayStart = 0.0;
-                if (rowA.BayLengths != null && rowA.BayLengths.Count > 0)
+                foreach (var blen in rowA.BayLengths)
                 {
-                    foreach (var blen in rowA.BayLengths)
-                    {
-                        if (s >= acc - 100.0 && s < acc + blen - 50.0)
-                        {
-                            bayStart = acc;
-                            matchedBay = blen;
-                            break;
-                        }
-                        acc += blen;
-                    }
+                    accCol += blen;
+                    colPositions.Add(accCol);
                 }
-                bool isSquareBay = Math.Abs(matchedBay - wB) <= 50.0;
-                double distFromStart = s - bayStart;
+            }
+            else
+            {
+                colPositions.Add(totalBayLenA);
+            }
+            int nBaysA = (rowA.BayLengths != null && rowA.BayLengths.Count > 0) ? rowA.BayLengths.Count : 1;
 
-                if (cross > 0)
+            // 2. Kiểm tra ngã ba chữ T: TH 4 (DetailLine ở vách phải / mặt trong)
+            // TH 4.1 & TH 4.2: Điểm s nằm tại vách phải nhánh B (s = cStart + wB), mép trái (s - wB) trùng cột chung cStart (k >= 1)
+            for (int k = 1; k < nBaysA; k++)
+            {
+                double cStart = colPositions[k];
+                if (Math.Abs((s - wB) - cStart) <= 150.0)
                 {
-                    if (isSquareBay) return "TH 3.2";
-                    if (distFromStart > 300.0) return "TH 3.3";
+                    double bLen = (rowA.BayLengths != null && rowA.BayLengths.Count > k) ? rowA.BayLengths[k] : 1800.0;
+                    bool isSquare = Math.Abs(bLen - wB) <= 100.0;
+                    if (isSquare) return "TH 4.2";
+                    return "TH 4.1";
+                }
+            }
+
+            // 3. Kiểm tra ngã ba chữ T: TH 3 (DetailLine ở vách trái / mặt trong)
+            // TH 3.1 & TH 3.2: Điểm s nằm tại cột chung cStart (k >= 1)
+            for (int k = 1; k < nBaysA; k++)
+            {
+                double cStart = colPositions[k];
+                if (Math.Abs(s - cStart) <= 150.0)
+                {
+                    double bLen = (rowA.BayLengths != null && rowA.BayLengths.Count > k) ? rowA.BayLengths[k] : 1800.0;
+                    bool isSquare = Math.Abs(bLen - wB) <= 100.0;
+                    if (isSquare) return "TH 3.2";
                     return "TH 3.1";
                 }
-                else
+            }
+
+            // 4. Kiểm tra ngã ba chữ T: TH 3.3 (DetailLine lệch bên trong nhịp k < nBaysA - 1, mép phải s + wB trùng cEnd)
+            for (int k = 0; k < nBaysA - 1; k++)
+            {
+                double cStart = colPositions[k];
+                double cEnd = colPositions[k + 1];
+                if (Math.Abs((s + wB) - cEnd) <= 150.0 && (s > cStart + 200.0))
                 {
-                    // Nhánh rẽ B rẽ phải / Mirrored mặt trong phía ngược TH3 => TH 4
-                    if (isSquareBay) return "TH 4.2";
-                    if (distFromStart > 300.0) return "TH 4.3";
-                    return "TH 4.1";
+                    return "TH 3.3";
+                }
+            }
+
+            // 5. Kiểm tra ngã ba chữ T: TH 4.3 (DetailLine tại cEnd k < nBaysA - 1, mép trái s - wB nằm trong nhịp)
+            for (int k = 0; k < nBaysA - 1; k++)
+            {
+                double cStart = colPositions[k];
+                double cEnd = colPositions[k + 1];
+                double bLen = (rowA.BayLengths != null && rowA.BayLengths.Count > k) ? rowA.BayLengths[k] : 1800.0;
+                if (Math.Abs(s - cEnd) <= 150.0 && (bLen > wB + 100.0) && ((s - wB) > cStart + 200.0))
+                {
+                    return "TH 4.3";
                 }
             }
 

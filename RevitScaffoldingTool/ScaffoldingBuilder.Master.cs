@@ -1397,6 +1397,15 @@ namespace RevitScaffoldingTool
                 double wNext = (nextRow != null && nextRow.Width > 0) ? nextRow.Width : W;
                 double wPrev = (prevRow != null && prevRow.Width > 0) ? prevRow.Width : W;
 
+                if (curRow.HasCoords && (prevConn == "TH 4.1" || prevConn == "TH 4.2" || prevConn == "TH 4.3"))
+                {
+                    // Với TH 4: DetailLine quét trong Revit nằm ở vách phải (mặt trong) của nhánh rẽ B.
+                    // Hệ trục địa phương yêu cầu gốc ox, oy nằm ở vách trái (mặt ngoài) để ly = 0 (vách trái) và ly = -W (vách phải).
+                    // Do đó tịnh tiến gốc tọa độ sang vách trái:
+                    ox -= W * sinA;
+                    oy += W * cosA;
+                }
+
                 Action<double, double> EnsureLocalCol = (lx, ly) =>
                 {
                     double gx = ox + lx * cosA - ly * sinA;

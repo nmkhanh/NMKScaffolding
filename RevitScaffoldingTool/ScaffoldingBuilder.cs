@@ -50,6 +50,9 @@ namespace RevitScaffoldingTool
         public bool CheckCase31 { get; set; }
         public bool CheckCase32 { get; set; }
         public bool CheckCase33 { get; set; }
+        public bool CheckCase41 { get; set; }
+        public bool CheckCase42 { get; set; }
+        public bool CheckCase43 { get; set; }
         public int Mode { get; set; }
         public string FamilyFolder { get; set; }
 
@@ -90,6 +93,9 @@ namespace RevitScaffoldingTool
             CheckCase31 = true;
             CheckCase32 = true;
             CheckCase33 = true;
+            CheckCase41 = true;
+            CheckCase42 = true;
+            CheckCase43 = true;
             Mode = -1;
             FamilyFolder = @"H:\My Drive\Family\New folder\Child";
             Post1Height = 0;

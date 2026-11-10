@@ -59,6 +59,12 @@ Tài liệu này phân rã toàn bộ logic hình học và mã nguồn C# thự
      - Nhánh rẽ B: **VÁCH PHẢI ($X = x_R$)**.
      - $\implies$ **Bố trí Giằng dọc Family 4** (lan can bảo vệ kép $h_6, h_7$, giằng giữa $h_3$).
    - **Đầu hồi đỉnh nhánh rẽ ($Y = y_{\text{Top}}$)**: Khóa kín an toàn với lan can kép $h_6, h_7$, toeboard và giằng đỉnh tại `topZ` (chỉ đặt 1 lần, triệt tiêu 100% đè trùng).
+6. **Điều Kiện Quét Nhận Diện Tự Động Trong Revit (DetailLine Scanning Condition)**:
+   - Dãy chính (Row A): Đường DetailLine xanh nằm ở mép trước ($Y = y_0$).
+   - Nhánh rẽ B (Row B): Đường DetailLine xanh nằm ở **VÁCH PHẢI ($X = x_R$)** (mặt trong hướng công trình).
+   - Tọa độ chiếu $s$ thỏa mãn: $|(s - W) - C_k| \le 150$ mm (với $C_k = x_{\text{Junc}}$ là cột mốc ngã ba).
+   - Chiều dài nhịp $L_k > W + 100$ mm ($L_k = 1800$ mm) $\implies$ Hệ thống tự động phát hiện **TH 4.1**.
+   - Khi chạy Table Run, tọa độ gốc của Row B được tự động căn chỉnh sang vách trái $ox = x_R - W \sin\theta$ để khớp nối phẳng 100% với cửa ngõ Row 0.
 
 ---
 
