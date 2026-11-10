@@ -59,6 +59,18 @@ Tài liệu này phân rã toàn bộ logic hình học và mã nguồn C# thự
    $$y_{\text{Top}} = y_0 + L_{\text{branch}}$$
    - Hai cột đỉnh nhánh rẽ nằm tại $(x_L, y_{\text{Top}})$ và $(x_R, y_{\text{Top}})$.
 
+### Quy Tắc Bất Biến Toàn Hệ Giàn (Universal Structural Rule):
+- **Mặt ngoài (Outer Face)**:
+  - Dãy chính: Mặt sau ($Y = y_0 - W$).
+  - Nhánh rẽ B: Vách phải ($X = x_R$).
+  - $\implies$ **Bắt buộc bố trí Giằng chéo Family 5** (qua `PlaceBayDiagonalBraces`), ván chắn biên Family 7. Tuyệt đối không dùng lan can giằng dọc trên mặt ngoài.
+- **Mặt trong (Inner Face)**:
+  - Dãy chính: Mặt trước ($Y = y_0$) hướng vào công trình.
+  - Nhánh rẽ B: Vách trái ($X = x_L$) hướng vào công trình.
+  - $\implies$ **Bố trí Giằng dọc Family 4** (lan can bảo vệ kép $h_6, h_7$, giằng giữa $h_3$).
+- **Giằng Đỉnh (`HasTopTransom`)**:
+  - Khi kích hoạt, đặt giằng đỉnh Family 4 tại cao độ đỉnh cột `topZ` cho cả mặt trước (đoạn cửa ngõ và đoạn gap), mặt sau dãy chính, hai vách của nhánh rẽ B và các thanh giằng ngang đỉnh tại từng bước cột.
+
 ---
 
 ## 2. Mã Nguồn C# Chi Tiết Từng Bước (ScaffoldingBuilder.Cases3.cs)

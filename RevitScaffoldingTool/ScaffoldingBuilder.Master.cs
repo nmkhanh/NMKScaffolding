@@ -1552,14 +1552,13 @@ namespace RevitScaffoldingTool
                         // Giằng ngang đỡ mâm h5 tại cuối nhịp
                         PlaceLocal(sym4, lxStart + L_bay, 0.0, zDeck, -90.0, "l", W);
 
-                        // Lan can an toàn kép Family 4 cả 2 vách (ly = 0 và ly = -W)
+                        // MẶT TRONG (ly = 0.0, quay vào công trình): Giằng giữa & Lan can an toàn kép Family 4
                         PlaceLocal(sym4, lxStart, 0.0, zH3, 0.0, "l", L_bay);
                         PlaceLocal(sym4, lxStart, 0.0, zH6, 0.0, "l", L_bay);
                         PlaceLocal(sym4, lxStart, 0.0, zH7, 0.0, "l", L_bay);
 
-                        PlaceLocal(sym4, lxStart, -W, zH3, 0.0, "l", L_bay);
-                        PlaceLocal(sym4, lxStart, -W, zH6, 0.0, "l", L_bay);
-                        PlaceLocal(sym4, lxStart, -W, zH7, 0.0, "l", L_bay);
+                        // MẶT NGOÀI (ly = -W, vách ngoài): Giằng chéo Family 5
+                        PlaceLocalBraces(lxStart, -W, 0.0, L_bay, s);
 
                         // Mâm sàn thao tác Family 6
                         PlaceLocalPlank(lxStart, -pOff, zDeck, 0.0, L_bay, pw);
@@ -1823,11 +1822,15 @@ namespace RevitScaffoldingTool
                         else
                         {
                             // NHỊP CHỨA NGÃ BA:
-                            // 1. Mặt sau (ly = -W): Giữ nguyên giằng chéo Family 5, ván lót chân, giằng chân, ván chắn biên
+                            // 1. Mặt sau (ly = -W): Giữ nguyên giằng chéo Family 5, ván lót chân, giằng chân, ván chắn biên, giằng đỉnh
                             EnsureLocalCol(px, -W); EnsureLocalCol(px + bLen, -W);
                             PlaceLocalTransom(px); PlaceLocalTransom(px + bLen);
                             PlaceLocalBaseboard(px, -W, 0.0, bLen);
                             PlaceLocal(sym4, px, -W, zH1, 0.0, "l", bLen);
+                            if (opts != null && opts.HasTopTransom)
+                            {
+                                PlaceLocal(sym4, px, -W, topZ, 0.0, "l", bLen);
+                            }
 
                             // 2. Mâm sàn thao tác chạy suốt nhịp
                             for (int s = 0; s < storyCount; s++)
@@ -1847,6 +1850,10 @@ namespace RevitScaffoldingTool
                                 EnsureLocalCol(px, 0.0); EnsureLocalCol(px + bLen, 0.0);
                                 PlaceLocalBaseboard(px, 0.0, 0.0, bLen);
                                 PlaceLocal(sym4, px, 0.0, zH1, 0.0, "l", bLen);
+                                if (opts != null && opts.HasTopTransom)
+                                {
+                                    PlaceLocal(sym4, px, 0.0, topZ, 0.0, "l", bLen);
+                                }
                                 // Tuyệt đối không lắp lan can h3, h6, h7 hay ván chắn biên tại cửa ngõ
                             }
                             else if (conn == "TH 3.1")
@@ -1861,11 +1868,19 @@ namespace RevitScaffoldingTool
 
                                 PlaceLocalBaseboard(px, 0.0, 0.0, L_door);
                                 PlaceLocal(sym4, px, 0.0, zH1, 0.0, "l", L_door);
+                                if (opts != null && opts.HasTopTransom)
+                                {
+                                    PlaceLocal(sym4, px, 0.0, topZ, 0.0, "l", L_door);
+                                }
 
                                 if (L_gap > 10.0)
                                 {
                                     PlaceLocalBaseboard(px + L_door, 0.0, 0.0, L_gap);
                                     PlaceLocal(sym4, px + L_door, 0.0, zH1, 0.0, "l", L_gap);
+                                    if (opts != null && opts.HasTopTransom)
+                                    {
+                                        PlaceLocal(sym4, px + L_door, 0.0, topZ, 0.0, "l", L_gap);
+                                    }
                                     for (int s = 0; s < storyCount; s++)
                                     {
                                         double sOff = s * 1800.0;
@@ -1895,6 +1910,10 @@ namespace RevitScaffoldingTool
                                 {
                                     PlaceLocalBaseboard(px, 0.0, 0.0, L_gap);
                                     PlaceLocal(sym4, px, 0.0, zH1, 0.0, "l", L_gap);
+                                    if (opts != null && opts.HasTopTransom)
+                                    {
+                                        PlaceLocal(sym4, px, 0.0, topZ, 0.0, "l", L_gap);
+                                    }
                                     for (int s = 0; s < storyCount; s++)
                                     {
                                         double sOff = s * 1800.0;
@@ -1912,6 +1931,10 @@ namespace RevitScaffoldingTool
 
                                 PlaceLocalBaseboard(px + L_gap, 0.0, 0.0, L_door);
                                 PlaceLocal(sym4, px + L_gap, 0.0, zH1, 0.0, "l", L_door);
+                                if (opts != null && opts.HasTopTransom)
+                                {
+                                    PlaceLocal(sym4, px + L_gap, 0.0, topZ, 0.0, "l", L_door);
+                                }
                             }
                         }
                         curLx += bLen;

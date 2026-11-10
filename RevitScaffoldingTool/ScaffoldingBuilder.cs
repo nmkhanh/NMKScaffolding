@@ -722,18 +722,31 @@ namespace RevitScaffoldingTool
             return 95.0 + pw / 2.0;
         }
 
-        private static void ConfigureAlinco2700(FamilyInstance inst)
+        private static void ConfigureAlinco2700(FamilyInstance inst, bool isBottomPost = true)
         {
             if (inst == null) return;
             SetParam(inst, "h", 2700);
-            SetParam(inst, "h1", 135);
-            SetParam(inst, "h2", 380);
-            SetParam(inst, "h3", 830);
-            SetParam(inst, "h4", 1280);
-            SetParam(inst, "h5", 1730);
-            SetParam(inst, "h6", 2180);
-            SetParam(inst, "h7", 2630);
-            for (int i = 8; i <= 15; i++) SetParam(inst, "h" + i, 0);
+            if (isBottomPost)
+            {
+                SetParam(inst, "h1", 135);
+                SetParam(inst, "h2", 380);
+                SetParam(inst, "h3", 830);
+                SetParam(inst, "h4", 1280);
+                SetParam(inst, "h5", 1730);
+                SetParam(inst, "h6", 2180);
+                SetParam(inst, "h7", 2630);
+                for (int i = 8; i <= 15; i++) SetParam(inst, "h" + i, 0);
+            }
+            else
+            {
+                SetParam(inst, "h1", 380);
+                SetParam(inst, "h2", 830);
+                SetParam(inst, "h3", 1280);
+                SetParam(inst, "h4", 1730);
+                SetParam(inst, "h5", 2180);
+                SetParam(inst, "h6", 2630);
+                for (int i = 7; i <= 15; i++) SetParam(inst, "h" + i, 0);
+            }
         }
 
         private static void ConfigureAlincoColumn(FamilyInstance inst, double height, bool isBottomPost = true)
@@ -767,17 +780,36 @@ namespace RevitScaffoldingTool
                     for (int i = 4; i <= 15; i++) SetParam(inst, "h" + i, 0);
                     break;
                 case 900:
-                    SetParam(inst, "h1", 135);
-                    SetParam(inst, "h2", 380);
-                    SetParam(inst, "h3", 830);
-                    for (int i = 4; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    if (isBottomPost)
+                    {
+                        SetParam(inst, "h1", 135);
+                        SetParam(inst, "h2", 380);
+                        SetParam(inst, "h3", 830);
+                        for (int i = 4; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    }
+                    else
+                    {
+                        SetParam(inst, "h1", 380);
+                        SetParam(inst, "h2", 830);
+                        for (int i = 3; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    }
                     break;
                 case 1350:
-                    SetParam(inst, "h1", 135);
-                    SetParam(inst, "h2", 380);
-                    SetParam(inst, "h3", 830);
-                    SetParam(inst, "h4", 1280);
-                    for (int i = 5; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    if (isBottomPost)
+                    {
+                        SetParam(inst, "h1", 135);
+                        SetParam(inst, "h2", 380);
+                        SetParam(inst, "h3", 830);
+                        SetParam(inst, "h4", 1280);
+                        for (int i = 5; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    }
+                    else
+                    {
+                        SetParam(inst, "h1", 380);
+                        SetParam(inst, "h2", 830);
+                        SetParam(inst, "h3", 1280);
+                        for (int i = 4; i <= 15; i++) SetParam(inst, "h" + i, 0);
+                    }
                     break;
                 case 1800:
                     SetParam(inst, "h1", 380);
@@ -787,7 +819,7 @@ namespace RevitScaffoldingTool
                     for (int i = 5; i <= 15; i++) SetParam(inst, "h" + i, 0);
                     break;
                 case 2700:
-                    ConfigureAlinco2700(inst);
+                    ConfigureAlinco2700(inst, isBottomPost);
                     break;
                 case 3600:
                     SetParam(inst, "h1", 380);

@@ -55,10 +55,18 @@ Tài liệu này phân rã toàn bộ logic hình học và mã nguồn C# thự
 5. **Đỉnh vươn của nhánh rẽ B**:
    $$y_{\text{Top}} = y_0 + L_{\text{branch}}$$
    - Hai cột đỉnh nhánh rẽ nằm tại $(x_{\text{Junc}}, y_{\text{Top}})$ và $(x_R, y_{\text{Top}})$.
-6. **Bảo vệ an toàn các vách nhánh rẽ**:
-   - Vách trái ($X = x_{\text{Junc}}$): Lan can an toàn kép Family 4 ($h_6, h_7$), giằng giữa $h_3$, giằng chân $h_1$ và ván chắn biên Family 7.
-   - Vách phải ($X = x_R$): Lan can an toàn kép Family 4 ($h_6, h_7$), giằng giữa $h_3$, giằng chân $h_1$ và ván chắn biên Family 7.
-   - Đầu hồi đỉnh ($Y = y_{\text{Top}}$): Khóa kín an toàn nếu là nhịp kết thúc.
+6. **Quy tắc Bất biến Toàn Hệ Giàn (Giằng Chéo Mặt Ngoài - Giằng Dọc Mặt Trong)**:
+   - **Mặt ngoài (Outer Face)**:
+     - Dãy chính: Mặt sau ($Y = y_0 - W$).
+     - Nhánh rẽ B: Vách phải ($X = x_R$).
+     - $\implies$ **Bắt buộc bố trí Giằng chéo Family 5** (qua `PlaceBayDiagonalBraces`), ván chắn biên Family 7.
+   - **Mặt trong (Inner Face)**:
+     - Dãy chính: Mặt trước ($Y = y_0$) hướng vào công trình.
+     - Nhánh rẽ B: Vách trái ($X = x_{\text{Junc}}$) hướng vào công trình.
+     - $\implies$ **Bố trí Giằng dọc Family 4** (lan can bảo vệ kép $h_6, h_7$, giằng giữa $h_3$).
+   - **Giằng Đỉnh (`HasTopTransom`)**:
+     - Khi kích hoạt, đặt giằng đỉnh Family 4 tại cao độ đỉnh cột `topZ` cho cả mặt trước (cửa ngõ và gap), mặt sau dãy chính, hai vách của nhánh rẽ B và các thanh giằng ngang đỉnh tại từng bước cột.
+   - Đầu hồi đỉnh ($Y = y_{\text{Top}}$): Khóa kín an toàn với lan can kép, toeboard và giằng đỉnh tại `topZ`.
 
 ---
 

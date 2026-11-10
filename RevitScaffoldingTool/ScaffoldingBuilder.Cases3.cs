@@ -61,18 +61,9 @@ namespace RevitScaffoldingTool
                                 colX, y0, z0, W, jackH, storyCount, topZ,
                                 (k, n) => (k == 0 || k == n - 1), opts);
 
-            // Dựng các nhịp tiêu chuẩn của dãy chính
-            for (int i = 0; i < nMainBays; i++)
-            {
-                BuildStandardBayElements(doc, level, placedIds, sym1, sym4, sym5, sym6, sym7,
-                                        colX[i], y0, z0, W, jackH, l1Bays[i], true, opts);
-            }
-
-            // =========================================================================
-            // PHẦN B: ĐIỂM NGÃ BA & CỘT CẤY PHỤ TẠI MÉP TRƯỚC (Y = y0)
-            // =========================================================================
-            // Vị trí ngã ba: mặc định tại điểm nối giữa nhịp 1 và nhịp 2 (nếu có >= 2 nhịp)
-            double xJunc = (nMainBays >= 2) ? colX[1] : colX[0];
+            // Xác định vị trí ngã ba: mặc định tại nhịp thứ 2 (hoặc nhịp 1 nếu chỉ có 1 nhịp)
+            int juncBayIdx = (nMainBays >= 2) ? 1 : 0;
+            double xJunc = colX[juncBayIdx];
             double xR = xJunc + W; // Vách phải của nhánh rẽ chữ T
 
             // Cấy thêm 1 cột phụ tại (xR, y0) nếu chưa trùng với cột nào của dãy chính
@@ -89,9 +80,108 @@ namespace RevitScaffoldingTool
                 PlaceConfiguredPosts(doc, sym3, level, placedIds, xR, y0, z0 + jackH, opts);
             }
 
-            // Giằng ngang chân tại cửa ngõ tiếp giáp [xJunc, xR]
-            var trRF_Junc = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(y0), MmToFt(zH1)), 0, "l", W);
-            if (trRF_Junc != null) placedIds.Add(trRF_Junc.Id.GetIdValue());
+            // Dựng các nhịp của dãy chính và mở cửa ngõ tại nhịp ngã ba
+            for (int i = 0; i < nMainBays; i++)
+            {
+                double bayLen = l1Bays[i];
+                double px = colX[i];
+
+                if (i != juncBayIdx)
+                {
+                    BuildStandardBayElements(doc, level, placedIds, sym1, sym4, sym5, sym6, sym7,
+                                            px, y0, z0, W, jackH, bayLen, true, opts);
+                }
+                else
+                {
+                    double L_gap = bayLen > W ? (bayLen - W) : 0.0;
+
+                    // Mặt sau (Y = y0 - W): Ván lót + Giằng chân + Giằng chéo Family 5 + Giằng đỉnh + Mâm sàn + Ván chắn biên
+                    var bbBack = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(px), MmToFt(y0 - W), MmToFt(z0)), 0, "l", bayLen);
+                    var lgH1Back = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(px), MmToFt(y0 - W), MmToFt(zH1)), 0, "l", bayLen);
+                    if (bbBack != null) placedIds.Add(bbBack.Id.GetIdValue());
+                    if (lgH1Back != null) placedIds.Add(lgH1Back.Id.GetIdValue());
+
+                    if (opts != null && opts.HasTopTransom)
+                    {
+                        var lgTopBack = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(px), MmToFt(y0 - W), MmToFt(topZ)), 0, "l", bayLen);
+                        if (lgTopBack != null) placedIds.Add(lgTopBack.Id.GetIdValue());
+                    }
+
+                    // Mặt trước (Y = y0):
+                    // 1) Cửa ngõ [xJunc, xR] (W mm): Mở thông suốt làm lối đi sang nhánh rẽ B
+                    var bbDoor = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xJunc), MmToFt(y0), MmToFt(z0)), 0, "l", W);
+                    var lgH1Door = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(y0), MmToFt(zH1)), 0, "l", W);
+                    if (bbDoor != null) placedIds.Add(bbDoor.Id.GetIdValue());
+                    if (lgH1Door != null) placedIds.Add(lgH1Door.Id.GetIdValue());
+
+                    if (opts != null && opts.HasTopTransom)
+                    {
+                        var lgTopDoor = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(y0), MmToFt(topZ)), 0, "l", W);
+                        if (lgTopDoor != null) placedIds.Add(lgTopDoor.Id.GetIdValue());
+                    }
+
+                    // 2) Đoạn bảo vệ còn lại [xR, px + bayLen] (nếu bayLen > W)
+                    if (L_gap > 10.0)
+                    {
+                        var bbGap = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xR), MmToFt(y0), MmToFt(z0)), 0, "l", L_gap);
+                        var lgH1Gap = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(y0), MmToFt(zH1)), 0, "l", L_gap);
+                        if (bbGap != null) placedIds.Add(bbGap.Id.GetIdValue());
+                        if (lgH1Gap != null) placedIds.Add(lgH1Gap.Id.GetIdValue());
+
+                        if (opts != null && opts.HasTopTransom)
+                        {
+                            var lgTopGap = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(y0), MmToFt(topZ)), 0, "l", L_gap);
+                            if (lgTopGap != null) placedIds.Add(lgTopGap.Id.GetIdValue());
+                        }
+                    }
+
+                    for (int s = 0; s < storyCount; s++)
+                    {
+                        double sOff = s * 1800.0;
+                        double zH3 = z0 + jackH + 830.0 + sOff;
+                        double zDeck = z0 + jackH + 1730.0 + sOff;
+                        double zH6 = z0 + jackH + 2180.0 + sOff;
+                        double zH7 = z0 + jackH + 2630.0 + sOff;
+
+                        // Giằng chéo mặt sau Family 5
+                        PlaceBayDiagonalBraces(doc, sym5, level, placedIds, px, y0 - W, 0, bayLen, z0, jackH, s, storyCount, opts);
+
+                        // Mâm sàn chạy suốt nhịp
+                        if (sym6 != null)
+                        {
+                            var pl1 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(px), MmToFt(y0 - pOff), MmToFt(zDeck)), 0, "l", bayLen);
+                            if (pl1 != null) { SetParam(pl1, "w", pw); placedIds.Add(pl1.Id.GetIdValue()); }
+
+                            var pl2 = PlaceInstance(doc, sym6, level, new XYZ(MmToFt(px), MmToFt(y0 - W + pOff), MmToFt(zDeck)), 0, "l", bayLen);
+                            if (pl2 != null) { SetParam(pl2, "w", pw); placedIds.Add(pl2.Id.GetIdValue()); }
+                        }
+
+                        // Ván chắn biên mặt sau
+                        if (sym7 != null)
+                        {
+                            var tb = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(px), MmToFt(y0 - W + 66.0), MmToFt(zDeck)), 0, "l", bayLen);
+                            if (tb != null) placedIds.Add(tb.Id.GetIdValue());
+                        }
+
+                        // Lan can và ván chắn biên đoạn gap mặt trước
+                        if (L_gap > 10.0)
+                        {
+                            var lgH3Gap = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(y0), MmToFt(zH3)), 0, "l", L_gap);
+                            var lgH6Gap = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(y0), MmToFt(zH6)), 0, "l", L_gap);
+                            var lgH7Gap = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(y0), MmToFt(zH7)), 0, "l", L_gap);
+                            if (lgH3Gap != null) placedIds.Add(lgH3Gap.Id.GetIdValue());
+                            if (lgH6Gap != null) placedIds.Add(lgH6Gap.Id.GetIdValue());
+                            if (lgH7Gap != null) placedIds.Add(lgH7Gap.Id.GetIdValue());
+
+                            if (sym7 != null)
+                            {
+                                var tbGap = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xR), MmToFt(y0 - 66.0), MmToFt(zDeck)), 0, "l", L_gap);
+                                if (tbGap != null) placedIds.Add(tbGap.Id.GetIdValue());
+                            }
+                        }
+                    }
+                }
+            }
 
             // =========================================================================
             // PHẦN C: DỰNG CÁC CẶP CỘT TIẾP THEO CHO NHÁNH RẼ B VỀ PHÍA +Y
@@ -124,6 +214,15 @@ namespace RevitScaffoldingTool
                 if (lgLeft_H1 != null) placedIds.Add(lgLeft_H1.Id.GetIdValue());
                 if (lgRight_H1 != null) placedIds.Add(lgRight_H1.Id.GetIdValue());
 
+                // Giằng đỉnh tại topZ
+                if (opts != null && opts.HasTopTransom)
+                {
+                    var lgTopL = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(runY), MmToFt(topZ)), 90, "l", bLen);
+                    var lgTopR = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(runY), MmToFt(topZ)), 90, "l", bLen);
+                    if (lgTopL != null) placedIds.Add(lgTopL.Id.GetIdValue());
+                    if (lgTopR != null) placedIds.Add(lgTopR.Id.GetIdValue());
+                }
+
                 // Ván lót đáy chân giàn
                 var bbLeft = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xJunc), MmToFt(runY), MmToFt(z0)), 90, "l", bLen);
                 var bbRight = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xR), MmToFt(runY), MmToFt(z0)), 90, "l", bLen);
@@ -138,23 +237,18 @@ namespace RevitScaffoldingTool
                     double zH6 = z0 + jackH + 2180.0 + sOff;
                     double zH7 = z0 + jackH + 2630.0 + sOff;
 
-                    // Giằng giữa h3 vách trái & vách phải
+                    // MẶT TRONG (xJunc, quay vào công trình): Giằng giữa & Lan can an toàn kép Family 4
                     var lgLeft_H3 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(runY), MmToFt(zH3)), 90, "l", bLen);
-                    var lgRight_H3 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(runY), MmToFt(zH3)), 90, "l", bLen);
-                    if (lgLeft_H3 != null) placedIds.Add(lgLeft_H3.Id.GetIdValue());
-                    if (lgRight_H3 != null) placedIds.Add(lgRight_H3.Id.GetIdValue());
-
-                    // Lan can an toàn kép h6, h7 vách trái & vách phải
                     var lgLeft_H6 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(runY), MmToFt(zH6)), 90, "l", bLen);
                     var lgLeft_H7 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(runY), MmToFt(zH7)), 90, "l", bLen);
-                    var lgRight_H6 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(runY), MmToFt(zH6)), 90, "l", bLen);
-                    var lgRight_H7 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(runY), MmToFt(zH7)), 90, "l", bLen);
+                    if (lgLeft_H3 != null) placedIds.Add(lgLeft_H3.Id.GetIdValue());
                     if (lgLeft_H6 != null) placedIds.Add(lgLeft_H6.Id.GetIdValue());
                     if (lgLeft_H7 != null) placedIds.Add(lgLeft_H7.Id.GetIdValue());
-                    if (lgRight_H6 != null) placedIds.Add(lgRight_H6.Id.GetIdValue());
-                    if (lgRight_H7 != null) placedIds.Add(lgRight_H7.Id.GetIdValue());
 
-                    // Ván chắn biên Family 7
+                    // MẶT NGOÀI (xR, vách ngoài): Giằng chéo Family 5
+                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xR, runY, 90, bLen, z0, jackH, s, storyCount, opts);
+
+                    // Ván chắn biên Family 7 cả 2 vách
                     if (sym7 != null)
                     {
                         var tbLeft = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xJunc + 66.0), MmToFt(runY), MmToFt(zDeck)), 90, "l", bLen);
@@ -181,6 +275,12 @@ namespace RevitScaffoldingTool
                 runY += bLen;
                 var trFoot = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(runY), MmToFt(zH1)), 0, "l", W);
                 if (trFoot != null) placedIds.Add(trFoot.Id.GetIdValue());
+
+                if (opts != null && opts.HasTopTransom)
+                {
+                    var trTop = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(runY), MmToFt(topZ)), 0, "l", W);
+                    if (trTop != null) placedIds.Add(trTop.Id.GetIdValue());
+                }
             }
 
             // =========================================================================
@@ -204,6 +304,12 @@ namespace RevitScaffoldingTool
                     var tbTop = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xJunc), MmToFt(yTop - 66.0), MmToFt(sDeck)), 0, "l", W);
                     if (tbTop != null) placedIds.Add(tbTop.Id.GetIdValue());
                 }
+            }
+
+            if (opts != null && opts.HasTopTransom)
+            {
+                var trEndTop = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(yTop), MmToFt(topZ)), 0, "l", W);
+                if (trEndTop != null) placedIds.Add(trEndTop.Id.GetIdValue());
             }
 
             return null;
@@ -282,7 +388,7 @@ namespace RevitScaffoldingTool
                 }
                 else
                 {
-                    // Ô vuông ngã ba: Mặt sau (Y = y0 - W) có giằng chéo Family 5 và mâm sàn;
+                    // Ô vuông ngã ba: Mặt sau (Y = y0 - W) có giằng chéo Family 5, giằng đỉnh và mâm sàn;
                     // Mặt trước (Y = y0) MỞ CỬA NGÕ SANG NHÁNH RẼ B (không có lan can và ván chắn)
                     var bbBack = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(px), MmToFt(y0 - W), MmToFt(z0)), 0, "l", bayLen);
                     var lgH1Back = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(px), MmToFt(y0 - W), MmToFt(zH1)), 0, "l", bayLen);
@@ -290,6 +396,14 @@ namespace RevitScaffoldingTool
                     if (bbBack != null) placedIds.Add(bbBack.Id.GetIdValue());
                     if (lgH1Back != null) placedIds.Add(lgH1Back.Id.GetIdValue());
                     if (lgH1Front != null) placedIds.Add(lgH1Front.Id.GetIdValue());
+
+                    if (opts != null && opts.HasTopTransom)
+                    {
+                        var lgTopBack = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(px), MmToFt(y0 - W), MmToFt(topZ)), 0, "l", bayLen);
+                        var lgTopFront = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(px), MmToFt(y0), MmToFt(topZ)), 0, "l", bayLen);
+                        if (lgTopBack != null) placedIds.Add(lgTopBack.Id.GetIdValue());
+                        if (lgTopFront != null) placedIds.Add(lgTopFront.Id.GetIdValue());
+                    }
 
                     for (int s = 0; s < storyCount; s++)
                     {
@@ -355,6 +469,14 @@ namespace RevitScaffoldingTool
                 if (lgLeft_H1 != null) placedIds.Add(lgLeft_H1.Id.GetIdValue());
                 if (lgRight_H1 != null) placedIds.Add(lgRight_H1.Id.GetIdValue());
 
+                if (opts != null && opts.HasTopTransom)
+                {
+                    var lgTopL = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(runY), MmToFt(topZ)), 90, "l", bLen);
+                    var lgTopR = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(runY), MmToFt(topZ)), 90, "l", bLen);
+                    if (lgTopL != null) placedIds.Add(lgTopL.Id.GetIdValue());
+                    if (lgTopR != null) placedIds.Add(lgTopR.Id.GetIdValue());
+                }
+
                 var bbLeft = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xJunc), MmToFt(runY), MmToFt(z0)), 90, "l", bLen);
                 var bbRight = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xR), MmToFt(runY), MmToFt(z0)), 90, "l", bLen);
                 if (bbLeft != null) placedIds.Add(bbLeft.Id.GetIdValue());
@@ -368,19 +490,16 @@ namespace RevitScaffoldingTool
                     double zH6 = z0 + jackH + 2180.0 + sOff;
                     double zH7 = z0 + jackH + 2630.0 + sOff;
 
+                    // MẶT TRONG (xJunc, quay vào công trình): Giằng giữa & Lan can an toàn kép Family 4
                     var lgLeft_H3 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(runY), MmToFt(zH3)), 90, "l", bLen);
-                    var lgRight_H3 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(runY), MmToFt(zH3)), 90, "l", bLen);
-                    if (lgLeft_H3 != null) placedIds.Add(lgLeft_H3.Id.GetIdValue());
-                    if (lgRight_H3 != null) placedIds.Add(lgRight_H3.Id.GetIdValue());
-
                     var lgLeft_H6 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(runY), MmToFt(zH6)), 90, "l", bLen);
                     var lgLeft_H7 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(runY), MmToFt(zH7)), 90, "l", bLen);
-                    var lgRight_H6 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(runY), MmToFt(zH6)), 90, "l", bLen);
-                    var lgRight_H7 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(runY), MmToFt(zH7)), 90, "l", bLen);
+                    if (lgLeft_H3 != null) placedIds.Add(lgLeft_H3.Id.GetIdValue());
                     if (lgLeft_H6 != null) placedIds.Add(lgLeft_H6.Id.GetIdValue());
                     if (lgLeft_H7 != null) placedIds.Add(lgLeft_H7.Id.GetIdValue());
-                    if (lgRight_H6 != null) placedIds.Add(lgRight_H6.Id.GetIdValue());
-                    if (lgRight_H7 != null) placedIds.Add(lgRight_H7.Id.GetIdValue());
+
+                    // MẶT NGOÀI (xR, vách ngoài): Giằng chéo Family 5
+                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xR, runY, 90, bLen, z0, jackH, s, storyCount, opts);
 
                     if (sym7 != null)
                     {
@@ -406,6 +525,12 @@ namespace RevitScaffoldingTool
                 runY += bLen;
                 var trFoot = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(runY), MmToFt(zH1)), 0, "l", W);
                 if (trFoot != null) placedIds.Add(trFoot.Id.GetIdValue());
+
+                if (opts != null && opts.HasTopTransom)
+                {
+                    var trTop = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(runY), MmToFt(topZ)), 0, "l", W);
+                    if (trTop != null) placedIds.Add(trTop.Id.GetIdValue());
+                }
             }
 
             // =========================================================================
@@ -429,6 +554,12 @@ namespace RevitScaffoldingTool
                     var tbTop = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xJunc), MmToFt(yTop - 66.0), MmToFt(sDeck)), 0, "l", W);
                     if (tbTop != null) placedIds.Add(tbTop.Id.GetIdValue());
                 }
+            }
+
+            if (opts != null && opts.HasTopTransom)
+            {
+                var trEndTop = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(yTop), MmToFt(topZ)), 0, "l", W);
+                if (trEndTop != null) placedIds.Add(trEndTop.Id.GetIdValue());
             }
 
             return null;
@@ -531,11 +662,17 @@ namespace RevitScaffoldingTool
                 }
                 else
                 {
-                    // Mặt sau (Y = y0 - W): Ván lót + Giằng chân + Giằng chéo Family 5 + Mâm sàn + Ván chắn biên
+                    // Mặt sau (Y = y0 - W): Ván lót + Giằng chân + Giằng chéo Family 5 + Giằng đỉnh + Mâm sàn + Ván chắn biên
                     var bbBack = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(px), MmToFt(y0 - W), MmToFt(z0)), 0, "l", bayLen);
                     var lgH1Back = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(px), MmToFt(y0 - W), MmToFt(zH1)), 0, "l", bayLen);
                     if (bbBack != null) placedIds.Add(bbBack.Id.GetIdValue());
                     if (lgH1Back != null) placedIds.Add(lgH1Back.Id.GetIdValue());
+
+                    if (opts != null && opts.HasTopTransom)
+                    {
+                        var lgTopBack = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(px), MmToFt(y0 - W), MmToFt(topZ)), 0, "l", bayLen);
+                        if (lgTopBack != null) placedIds.Add(lgTopBack.Id.GetIdValue());
+                    }
 
                     // Mặt trước (Y = y0):
                     // 1) Đoạn cắt 600 mm [xStart, xL]:
@@ -545,11 +682,23 @@ namespace RevitScaffoldingTool
                         var lgH1FrontCut = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(px), MmToFt(y0), MmToFt(zH1)), 0, "l", cutFrontLen);
                         if (bbFrontCut != null) placedIds.Add(bbFrontCut.Id.GetIdValue());
                         if (lgH1FrontCut != null) placedIds.Add(lgH1FrontCut.Id.GetIdValue());
+
+                        if (opts != null && opts.HasTopTransom)
+                        {
+                            var lgTopFrontCut = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(px), MmToFt(y0), MmToFt(topZ)), 0, "l", cutFrontLen);
+                            if (lgTopFrontCut != null) placedIds.Add(lgTopFrontCut.Id.GetIdValue());
+                        }
                     }
 
-                    // 2) Đoạn cửa ngõ [xL, xR] (1200 mm): Giằng chân h1 khóa cột cấy với cột dùng chung
+                    // 2) Đoạn cửa ngõ [xL, xR] (1200 mm): Giằng chân h1 và giằng đỉnh khóa cột cấy với cột dùng chung
                     var lgH1Junc = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xL), MmToFt(y0), MmToFt(zH1)), 0, "l", W);
                     if (lgH1Junc != null) placedIds.Add(lgH1Junc.Id.GetIdValue());
+
+                    if (opts != null && opts.HasTopTransom)
+                    {
+                        var lgTopJunc = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xL), MmToFt(y0), MmToFt(topZ)), 0, "l", W);
+                        if (lgTopJunc != null) placedIds.Add(lgTopJunc.Id.GetIdValue());
+                    }
 
                     for (int s = 0; s < storyCount; s++)
                     {
@@ -624,6 +773,15 @@ namespace RevitScaffoldingTool
                 if (lgH1L != null) placedIds.Add(lgH1L.Id.GetIdValue());
                 if (lgH1R != null) placedIds.Add(lgH1R.Id.GetIdValue());
 
+                // Giằng đỉnh tại topZ
+                if (opts != null && opts.HasTopTransom)
+                {
+                    var lgTopL = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xL), MmToFt(runY), MmToFt(topZ)), 90, "l", bLen);
+                    var lgTopR = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(runY), MmToFt(topZ)), 90, "l", bLen);
+                    if (lgTopL != null) placedIds.Add(lgTopL.Id.GetIdValue());
+                    if (lgTopR != null) placedIds.Add(lgTopR.Id.GetIdValue());
+                }
+
                 // Ván lót chân
                 var bbLeft = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xL), MmToFt(runY), MmToFt(z0)), 90, "l", bLen);
                 var bbRight = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xR), MmToFt(runY), MmToFt(z0)), 90, "l", bLen);
@@ -638,19 +796,16 @@ namespace RevitScaffoldingTool
                     double zH6 = z0 + jackH + 2180.0 + sOff;
                     double zH7 = z0 + jackH + 2630.0 + sOff;
 
+                    // MẶT TRONG (xL, quay vào công trình): Giằng giữa & Lan can an toàn kép Family 4
                     var lgLeft_H3 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xL), MmToFt(runY), MmToFt(zH3)), 90, "l", bLen);
-                    var lgRight_H3 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(runY), MmToFt(zH3)), 90, "l", bLen);
-                    if (lgLeft_H3 != null) placedIds.Add(lgLeft_H3.Id.GetIdValue());
-                    if (lgRight_H3 != null) placedIds.Add(lgRight_H3.Id.GetIdValue());
-
                     var lgLeft_H6 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xL), MmToFt(runY), MmToFt(zH6)), 90, "l", bLen);
                     var lgLeft_H7 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xL), MmToFt(runY), MmToFt(zH7)), 90, "l", bLen);
-                    var lgRight_H6 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(runY), MmToFt(zH6)), 90, "l", bLen);
-                    var lgRight_H7 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xR), MmToFt(runY), MmToFt(zH7)), 90, "l", bLen);
+                    if (lgLeft_H3 != null) placedIds.Add(lgLeft_H3.Id.GetIdValue());
                     if (lgLeft_H6 != null) placedIds.Add(lgLeft_H6.Id.GetIdValue());
                     if (lgLeft_H7 != null) placedIds.Add(lgLeft_H7.Id.GetIdValue());
-                    if (lgRight_H6 != null) placedIds.Add(lgRight_H6.Id.GetIdValue());
-                    if (lgRight_H7 != null) placedIds.Add(lgRight_H7.Id.GetIdValue());
+
+                    // MẶT NGOÀI (xR, vách ngoài): Giằng chéo Family 5
+                    PlaceBayDiagonalBraces(doc, sym5, level, placedIds, xR, runY, 90, bLen, z0, jackH, s, storyCount, opts);
 
                     if (sym7 != null)
                     {
@@ -676,6 +831,12 @@ namespace RevitScaffoldingTool
                 runY += bLen;
                 var trFoot = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xL), MmToFt(runY), MmToFt(zH1)), 0, "l", W);
                 if (trFoot != null) placedIds.Add(trFoot.Id.GetIdValue());
+
+                if (opts != null && opts.HasTopTransom)
+                {
+                    var trTop = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xL), MmToFt(runY), MmToFt(topZ)), 0, "l", W);
+                    if (trTop != null) placedIds.Add(trTop.Id.GetIdValue());
+                }
             }
 
             // =========================================================================
@@ -699,6 +860,12 @@ namespace RevitScaffoldingTool
                     var tbTop = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xL), MmToFt(yTop - 66.0), MmToFt(sDeck)), 0, "l", W);
                     if (tbTop != null) placedIds.Add(tbTop.Id.GetIdValue());
                 }
+            }
+
+            if (opts != null && opts.HasTopTransom)
+            {
+                var trEndTop = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xL), MmToFt(yTop), MmToFt(topZ)), 0, "l", W);
+                if (trEndTop != null) placedIds.Add(trEndTop.Id.GetIdValue());
             }
 
             return null;
