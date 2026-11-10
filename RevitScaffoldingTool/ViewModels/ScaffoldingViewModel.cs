@@ -20,7 +20,7 @@ namespace RevitScaffoldingTool.ViewModels
         // Bảng hệ giàn (DataGrid - Cột Trái)
         public ObservableCollection<BayRowModel> BayRows { get; } = new ObservableCollection<BayRowModel>();
         [ObservableProperty] private BayRowModel _selectedBayRow;
-        public List<string> ConnectCases { get; } = new List<string> { "TH 0", "TH 1.1", "TH 1.2", "TH 1.3", "TH 1.4", "TH 2.1", "TH 2.2", "TH 3.1" };
+        public List<string> ConnectCases { get; } = new List<string> { "TH 0", "TH 1.1", "TH 1.2", "TH 1.3", "TH 1.4", "TH 2.1", "TH 2.2", "TH 3.1", "TH 3.2" };
 
         // Vị trí, Chân chống & Cao độ Z (Cột Giữa - Data)
         [ObservableProperty] private double _elevationZ = 0.0;
@@ -62,6 +62,7 @@ namespace RevitScaffoldingTool.ViewModels
         [ObservableProperty] private bool _checkCase21 = true;
         [ObservableProperty] private bool _checkCase22 = true;
         [ObservableProperty] private bool _checkCase31 = true;
+        [ObservableProperty] private bool _checkCase32 = true;
 
         // Trạng thái thực thi
         [ObservableProperty] private string _statusMessage = "Sẵn sàng thi công giàn giáo ALINCO (Dark Theme).";
@@ -128,6 +129,7 @@ namespace RevitScaffoldingTool.ViewModels
                 CheckCase21 = s.CheckCase21;
                 CheckCase22 = s.CheckCase22;
                 CheckCase31 = s.CheckCase31;
+                CheckCase32 = s.CheckCase32;
             }
             catch
             {
@@ -168,6 +170,7 @@ namespace RevitScaffoldingTool.ViewModels
                 s.CheckCase21 = CheckCase21;
                 s.CheckCase22 = CheckCase22;
                 s.CheckCase31 = CheckCase31;
+                s.CheckCase32 = CheckCase32;
                 s.Save();
             }
             catch
@@ -199,6 +202,7 @@ namespace RevitScaffoldingTool.ViewModels
 
             List<double> caseL1Bays = l0Bays;
             List<double> caseL2Bays = l1Bays;
+            double w = ButtonW > 0 ? ButtonW : 1200.0;
 
             switch (mode)
             {
@@ -230,11 +234,14 @@ namespace RevitScaffoldingTool.ViewModels
                     caseL1Bays = l0Bays;
                     caseL2Bays = l1Bays;
                     break;
+                case -11: // TH 3.2: Ngã ba chữ T ô vuông 1200x1200 (Dãy chính L0Bays, Nhánh rẽ L1Bays)
+                    caseL1Bays = (l0Bays.Count >= 3) ? l0Bays : new List<double> { 1800.0, w, 1800.0 };
+                    caseL2Bays = l1Bays;
+                    break;
             }
 
             double l1Last = caseL1Bays[caseL1Bays.Count - 1];
             double l2First = caseL2Bays[0];
-            double w = ButtonW > 0 ? ButtonW : 1200.0;
 
             double startX = 0.0;
             double startY = 0.0;
@@ -276,6 +283,7 @@ namespace RevitScaffoldingTool.ViewModels
                 CheckCase21 = CheckCase21,
                 CheckCase22 = CheckCase22,
                 CheckCase31 = CheckCase31,
+                CheckCase32 = CheckCase32,
                 JackHeight = IsFromData ? JackHeight : 250.0,
                 BayLengths = new List<double>(caseL1Bays),
                 FamilyFolder = string.IsNullOrWhiteSpace(FamilyFolder) ? @"H:\My Drive\Family\New folder\Child" : FamilyFolder,
@@ -523,11 +531,27 @@ namespace RevitScaffoldingTool.ViewModels
             // - Khi rẽ phải (cross < 0): pháp tuyến phải của B ngược chiều uA -> B chiếm [s - wB, s]
             double sMid = (cross > 0) ? (s + 0.5 * wB) : (s - 0.5 * wB);
 
-            // Kiểm tra trường hợp ngã ba chữ T (TH 3.1):
+            // Kiểm tra trường hợp ngã ba chữ T (TH 3.1 & TH 3.2):
             // Điểm bắt đầu dãy B nằm trên thân dãy A
             if (s >= -200.0 && s < totalBayLenA - wB - 100.0)
             {
-                return "TH 3.1";
+                // Kiểm tra xem nhịp tại vị trí s có phải là ô vuông (L ~ wB = 1200 mm) không:
+                double acc = 0.0;
+                double matchedBay = 1800.0;
+                if (rowA.BayLengths != null && rowA.BayLengths.Count > 0)
+                {
+                    foreach (var blen in rowA.BayLengths)
+                    {
+                        if (s >= acc - 100.0 && s < acc + blen - 50.0)
+                        {
+                            matchedBay = blen;
+                            break;
+                        }
+                        acc += blen;
+                    }
+                }
+                bool isSquareBay = Math.Abs(matchedBay - wB) <= 50.0;
+                return isSquareBay ? "TH 3.2" : "TH 3.1";
             }
 
             // Kiểm tra vị trí dọc sMid phải nằm gần cuối dãy A (trong nhịp cuối hoặc vươn ra ngoài đầu dãy A)
@@ -753,5 +777,8 @@ namespace RevitScaffoldingTool.ViewModels
 
         [RelayCommand]
         private Task BuildCase31Async() => RunBuildModeAsync(-10, "TH 3.1 (L0 ⇒ L1): Khớp Ngã Ba Chữ T (T-Junction)");
+
+        [RelayCommand]
+        private Task BuildCase32Async() => RunBuildModeAsync(-11, "TH 3.2 (L0 ⇒ L1): Khớp Ngã Ba Ô Vuông (Không Cột Cấy)");
     }
 }

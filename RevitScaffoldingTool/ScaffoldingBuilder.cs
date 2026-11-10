@@ -48,6 +48,7 @@ namespace RevitScaffoldingTool
         public bool CheckCase21 { get; set; }
         public bool CheckCase22 { get; set; }
         public bool CheckCase31 { get; set; }
+        public bool CheckCase32 { get; set; }
         public int Mode { get; set; }
         public string FamilyFolder { get; set; }
 
@@ -86,6 +87,7 @@ namespace RevitScaffoldingTool
             CheckCase21 = true;
             CheckCase22 = true;
             CheckCase31 = true;
+            CheckCase32 = true;
             Mode = -1;
             FamilyFolder = @"H:\My Drive\Family\New folder\Child";
             Post1Height = 0;
@@ -287,6 +289,11 @@ namespace RevitScaffoldingTool
                     {
                         string err = ExecuteCase3_1(doc, opts, defaultLevel, placedIds);
                         if (!string.IsNullOrEmpty(err)) { tx.RollBack(); res.Message = "Lỗi Trường Hợp 3.1: " + err; return res; }
+                    }
+                    else if (opts.Mode == -11 || opts.Mode == 8)
+                    {
+                        string err = ExecuteCase3_2(doc, opts, defaultLevel, placedIds);
+                        if (!string.IsNullOrEmpty(err)) { tx.RollBack(); res.Message = "Lỗi Trường Hợp 3.2: " + err; return res; }
                     }
                     else
                     {

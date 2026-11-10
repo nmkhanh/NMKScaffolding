@@ -529,7 +529,7 @@
                         </Grid>
 
                         <!-- TH 3.1: CheckBox 7 + Button -->
-                        <Grid Margin="0,0,0,2">
+                        <Grid Margin="0,0,0,5">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="28"/>
                                 <ColumnDefinition Width="*"/>
@@ -540,6 +540,20 @@
                                     Command="{Binding BuildCase31Command}" 
                                     Height="32" Background="#0D9488"
                                     ToolTip="TH 3.1: Dãy chính chạy thẳng liên tục qua ngã ba; Nhánh rẽ đâm vuông góc +Y về bên phải đường tim (W = 1200 mm)."/>
+                        </Grid>
+
+                        <!-- TH 3.2: CheckBox 8 + Button -->
+                        <Grid Margin="0,0,0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="28"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0" IsChecked="{Binding CheckCase32, Mode=TwoWay}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                      ToolTip="Bật/Tắt TH 3.2 (dự phòng)"/>
+                            <Button Grid.Column="1" Content="TH 3.2 (L0 ⇒ L1): Ngã Ba Ô Vuông (Không Cột Cấy)" 
+                                    Command="{Binding BuildCase32Command}" 
+                                    Height="32" Background="#047857"
+                                    ToolTip="TH 3.2: Nhịp ngã ba là ô vuông W x W (1200x1200 mm); Nhánh rẽ tựa vào 2 cột trước của ô vuông mà không cần cấy cột phụ."/>
                         </Grid>
 
                     </StackPanel>

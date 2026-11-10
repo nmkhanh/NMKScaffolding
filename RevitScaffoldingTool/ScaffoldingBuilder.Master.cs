@@ -992,6 +992,7 @@ namespace RevitScaffoldingTool
             if (s.Contains("1.4")) return "TH 1.4";
             if (s.Contains("2.1")) return "TH 2.1";
             if (s.Contains("2.2")) return "TH 2.2";
+            if (s.Contains("3.2")) return "TH 3.2";
             if (s.Contains("3.1")) return "TH 3.1";
             return "TH 0";
         }
@@ -2811,9 +2812,9 @@ namespace RevitScaffoldingTool
                     }
                     PlaceLocalTransom(curLx);
                 }
-                else if (conn == "TH 3.1")
+                else if (conn == "TH 3.1" || conn == "TH 3.2")
                 {
-                    // Với TH 3.1: Dãy chính chạy thẳng liên tục qua ngã ba
+                    // Với TH 3.1 & 3.2: Dãy chính chạy thẳng liên tục qua ngã ba
                     for (int b = startBayIdx; b < curBays.Count; b++)
                     {
                         BuildLocalStandardBay(curLx, curBays[b]);
@@ -2821,7 +2822,7 @@ namespace RevitScaffoldingTool
                     }
                     CloseLocalGable(curLx, false);
 
-                    // Cấy cột phụ cho ngã ba tại mép trước (ly = 0):
+                    // Điểm ngã ba tại mép trước (ly = 0):
                     double sJunc = curBays[0];
                     if (nextRow != null && nextRow.HasCoords && curRow.HasCoords)
                     {
@@ -2991,7 +2992,7 @@ namespace RevitScaffoldingTool
                     fallbackOy = oy + nextLx * sinA;
                     fallbackTheta = thetaDeg - 90.0;
                 }
-                else if (conn == "TH 3.1")
+                else if (conn == "TH 3.1" || conn == "TH 3.2")
                 {
                     double sJunc = curBays[0];
                     fallbackOx = ox + sJunc * cosA;
