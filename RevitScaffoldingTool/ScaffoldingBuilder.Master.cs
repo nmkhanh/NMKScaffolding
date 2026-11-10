@@ -992,6 +992,9 @@ namespace RevitScaffoldingTool
             if (s.Contains("1.4")) return "TH 1.4";
             if (s.Contains("2.1")) return "TH 2.1";
             if (s.Contains("2.2")) return "TH 2.2";
+            if (s.Contains("4.3")) return "TH 4.3";
+            if (s.Contains("4.2")) return "TH 4.2";
+            if (s.Contains("4.1")) return "TH 4.1";
             if (s.Contains("3.3")) return "TH 3.3";
             if (s.Contains("3.2")) return "TH 3.2";
             if (s.Contains("3.1")) return "TH 3.1";
@@ -1570,6 +1573,54 @@ namespace RevitScaffoldingTool
                     }
                 };
 
+                Action<double, double> BuildLocalBranchBayMirrored = (lxStart, L_bay) =>
+                {
+                    EnsureLocalCol(lxStart, -W); EnsureLocalCol(lxStart, 0.0);
+                    EnsureLocalCol(lxStart + L_bay, -W); EnsureLocalCol(lxStart + L_bay, 0.0);
+                    PlaceLocalTransom(lxStart);
+                    PlaceLocalTransom(lxStart + L_bay);
+
+                    PlaceLocalBaseboard(lxStart, 0.0, 0.0, L_bay);
+                    PlaceLocalBaseboard(lxStart, -W, 0.0, L_bay);
+
+                    PlaceLocal(sym4, lxStart, 0.0, zH1, 0.0, "l", L_bay);
+                    PlaceLocal(sym4, lxStart, -W, zH1, 0.0, "l", L_bay);
+
+                    if (opts != null && opts.HasTopTransom)
+                    {
+                        PlaceLocal(sym4, lxStart, 0.0, topZ, 0.0, "l", L_bay);
+                        PlaceLocal(sym4, lxStart, -W, topZ, 0.0, "l", L_bay);
+                    }
+
+                    for (int s = 0; s < storyCount; s++)
+                    {
+                        double sOff = s * 1800.0;
+                        double zH3 = z0 + jackH + 830.0 + sOff;
+                        double zDeck = z0 + jackH + 1730.0 + sOff;
+                        double zH6 = z0 + jackH + 2180.0 + sOff;
+                        double zH7 = z0 + jackH + 2630.0 + sOff;
+
+                        // Giằng ngang đỡ mâm h5 tại cuối nhịp
+                        PlaceLocal(sym4, lxStart + L_bay, 0.0, zDeck, -90.0, "l", W);
+
+                        // MẶT TRONG (ly = -W, vách phải nhánh B - MIRRORED so với TH3): Giằng giữa & Lan can an toàn kép Family 4
+                        PlaceLocal(sym4, lxStart, -W, zH3, 0.0, "l", L_bay);
+                        PlaceLocal(sym4, lxStart, -W, zH6, 0.0, "l", L_bay);
+                        PlaceLocal(sym4, lxStart, -W, zH7, 0.0, "l", L_bay);
+
+                        // MẶT NGOÀI (ly = 0.0, vách trái nhánh B - MIRRORED so với TH3): Giằng chéo Family 5
+                        PlaceLocalBraces(lxStart, 0.0, 0.0, L_bay, s);
+
+                        // Mâm sàn thao tác Family 6
+                        PlaceLocalPlank(lxStart, -pOff, zDeck, 0.0, L_bay, pw);
+                        PlaceLocalPlank(lxStart, -W + pOff, zDeck, 0.0, L_bay, pw);
+
+                        // Ván chắn biên Family 7 cả 2 vách
+                        PlaceLocal(sym7, lxStart, -66.0, zDeck, 0.0, "l", L_bay);
+                        PlaceLocal(sym7, lxStart, -W + 66.0, zDeck, 0.0, "l", L_bay);
+                    }
+                };
+
                 int startBayIdx = 0;
                 double curLx = 0.0;
 
@@ -1578,7 +1629,8 @@ namespace RevitScaffoldingTool
                 {
                     CloseLocalGable(0.0, true);
                 }
-                else if (prevConn == "TH 3.1" || prevConn == "TH 3.2" || prevConn == "TH 3.3")
+                else if (prevConn == "TH 3.1" || prevConn == "TH 3.2" || prevConn == "TH 3.3" ||
+                         prevConn == "TH 4.1" || prevConn == "TH 4.2" || prevConn == "TH 4.3")
                 {
                     // Lối vào từ ngã ba chữ T: mở thông suốt 100%, không đóng đầu hồi tại lx = 0
                     EnsureLocalCol(0.0, -W);
@@ -1756,12 +1808,17 @@ namespace RevitScaffoldingTool
                 // 2. Xử lý thân và cuối của hàng i theo kết nối conn đi sang hàng i+1
                 if (!hasConnect)
                 {
-                    bool isBranch = (prevConn == "TH 3.1" || prevConn == "TH 3.2" || prevConn == "TH 3.3");
+                    bool isBranch3 = (prevConn == "TH 3.1" || prevConn == "TH 3.2" || prevConn == "TH 3.3");
+                    bool isBranch4 = (prevConn == "TH 4.1" || prevConn == "TH 4.2" || prevConn == "TH 4.3");
                     for (int b = startBayIdx; b < curBays.Count; b++)
                     {
-                        if (isBranch)
+                        if (isBranch3)
                         {
                             BuildLocalBranchBay(curLx, curBays[b]);
+                        }
+                        else if (isBranch4)
+                        {
+                            BuildLocalBranchBayMirrored(curLx, curBays[b]);
                         }
                         else
                         {
@@ -1781,9 +1838,10 @@ namespace RevitScaffoldingTool
                     }
                     PlaceLocalTransom(curLx);
                 }
-                else if (conn == "TH 3.1" || conn == "TH 3.2" || conn == "TH 3.3")
+                else if (conn == "TH 3.1" || conn == "TH 3.2" || conn == "TH 3.3" ||
+                         conn == "TH 4.1" || conn == "TH 4.2" || conn == "TH 4.3")
                 {
-                    // Với TH 3.1, 3.2 & 3.3: Dãy chính chạy thẳng liên tục qua ngã ba
+                    // Với TH 3.X & 4.X: Dãy chính chạy thẳng liên tục qua ngã ba
                     // Xác định vị trí dọc sJunc của ngã ba trên dãy chính
                     double sJunc = curBays[0];
                     if (nextRow != null && nextRow.HasCoords && curRow.HasCoords)
@@ -1792,7 +1850,7 @@ namespace RevitScaffoldingTool
                         double relStartY = nextRow.StartY - oy;
                         sJunc = relStartX * cosA + relStartY * sinA;
                     }
-                    else if (conn == "TH 3.3" && curBays.Count > 1)
+                    else if ((conn == "TH 3.3" || conn == "TH 4.3") && curBays.Count > 1)
                     {
                         sJunc = curBays[0] + (curBays[1] - wNext);
                     }
@@ -1844,21 +1902,16 @@ namespace RevitScaffoldingTool
                             }
 
                             // 3. Mặt trước (ly = 0.0):
-                            if (conn == "TH 3.2")
+                            if (conn == "TH 3.2" || conn == "TH 4.2")
                             {
-                                // TH 3.2: Ô vuông W x W -> Toàn bộ bề rộng bLen (~ wNext) mở cửa ngõ
+                                // TH 3.2 / TH 4.2: Ô vuông W x W -> Toàn bộ bề rộng bLen (~ wNext) mở cửa ngõ
                                 EnsureLocalCol(px, 0.0); EnsureLocalCol(px + bLen, 0.0);
-                                PlaceLocalBaseboard(px, 0.0, 0.0, bLen);
-                                PlaceLocal(sym4, px, 0.0, zH1, 0.0, "l", bLen);
-                                if (opts != null && opts.HasTopTransom)
-                                {
-                                    PlaceLocal(sym4, px, 0.0, topZ, 0.0, "l", bLen);
-                                }
-                                // Tuyệt đối không lắp lan can h3, h6, h7 hay ván chắn biên tại cửa ngõ
+                                // Dùng PlaceLocalTransomAt để đồng bộ khóa chân, mâm sàn zDeck và giằng đỉnh topZ với Row 1, không đặt ván lót cản trở cửa ngõ
+                                PlaceLocalTransomAt(px, 0.0, 0.0, bLen);
                             }
-                            else if (conn == "TH 3.1")
+                            else if (conn == "TH 3.1" || conn == "TH 4.1")
                             {
-                                // TH 3.1: Nhánh rẽ ở đoạn đầu [px, px + wNext] (Cửa ngõ), đoạn sau [px + wNext, px + bLen] có lan can
+                                // TH 3.1 / TH 4.1: Nhánh rẽ ở đoạn đầu [px, px + wNext] (Cửa ngõ), đoạn sau [px + wNext, px + bLen] có lan can
                                 double L_door = wNext;
                                 double L_gap = bLen > wNext ? (bLen - wNext) : 0.0;
 
@@ -1866,12 +1919,8 @@ namespace RevitScaffoldingTool
                                 EnsureLocalCol(px + L_door, 0.0); // CỘT CẤY
                                 EnsureLocalCol(px + bLen, 0.0);
 
-                                PlaceLocalBaseboard(px, 0.0, 0.0, L_door);
-                                PlaceLocal(sym4, px, 0.0, zH1, 0.0, "l", L_door);
-                                if (opts != null && opts.HasTopTransom)
-                                {
-                                    PlaceLocal(sym4, px, 0.0, topZ, 0.0, "l", L_door);
-                                }
+                                // Cửa ngõ mở thông suốt, không đặt ván lót qua cửa ngõ
+                                PlaceLocalTransomAt(px, 0.0, 0.0, L_door);
 
                                 if (L_gap > 10.0)
                                 {
@@ -1896,9 +1945,9 @@ namespace RevitScaffoldingTool
                                     }
                                 }
                             }
-                            else if (conn == "TH 3.3")
+                            else if (conn == "TH 3.3" || conn == "TH 4.3")
                             {
-                                // TH 3.3: Đoạn đầu [px, px + L_gap] có lan can, đoạn sau [px + L_gap, px + bLen] là Cửa ngõ (wNext)
+                                // TH 3.3 / TH 4.3: Đoạn đầu [px, px + L_gap] có lan can, đoạn sau [px + L_gap, px + bLen] là Cửa ngõ (wNext)
                                 double L_door = wNext;
                                 double L_gap = bLen > wNext ? (bLen - wNext) : 0.0;
 
@@ -1929,12 +1978,8 @@ namespace RevitScaffoldingTool
                                     }
                                 }
 
-                                PlaceLocalBaseboard(px + L_gap, 0.0, 0.0, L_door);
-                                PlaceLocal(sym4, px + L_gap, 0.0, zH1, 0.0, "l", L_door);
-                                if (opts != null && opts.HasTopTransom)
-                                {
-                                    PlaceLocal(sym4, px + L_gap, 0.0, topZ, 0.0, "l", L_door);
-                                }
+                                // Cửa ngõ mở thông suốt, không đặt ván lót qua cửa ngõ
+                                PlaceLocalTransomAt(px + L_gap, 0.0, 0.0, L_door);
                             }
                         }
                         curLx += bLen;
@@ -2100,10 +2145,11 @@ namespace RevitScaffoldingTool
                     fallbackOy = oy + nextLx * sinA;
                     fallbackTheta = thetaDeg - 90.0;
                 }
-                else if (conn == "TH 3.1" || conn == "TH 3.2" || conn == "TH 3.3")
+                else if (conn == "TH 3.1" || conn == "TH 3.2" || conn == "TH 3.3" ||
+                         conn == "TH 4.1" || conn == "TH 4.2" || conn == "TH 4.3")
                 {
                     double sJunc = curBays[0];
-                    if (conn == "TH 3.3" && curBays.Count > 1)
+                    if ((conn == "TH 3.3" || conn == "TH 4.3") && curBays.Count > 1)
                     {
                         sJunc += curBays[1] - wNext;
                     }

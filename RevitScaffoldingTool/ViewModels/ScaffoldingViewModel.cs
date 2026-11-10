@@ -20,7 +20,11 @@ namespace RevitScaffoldingTool.ViewModels
         // Bảng hệ giàn (DataGrid - Cột Trái)
         public ObservableCollection<BayRowModel> BayRows { get; } = new ObservableCollection<BayRowModel>();
         [ObservableProperty] private BayRowModel _selectedBayRow;
-        public List<string> ConnectCases { get; } = new List<string> { "TH 0", "TH 1.1", "TH 1.2", "TH 1.3", "TH 1.4", "TH 2.1", "TH 2.2", "TH 3.1", "TH 3.2", "TH 3.3" };
+        public List<string> ConnectCases { get; } = new List<string> {
+            "TH 0", "TH 1.1", "TH 1.2", "TH 1.3", "TH 1.4", "TH 2.1", "TH 2.2",
+            "TH 3.1", "TH 3.2", "TH 3.3",
+            "TH 4.1", "TH 4.2", "TH 4.3"
+        };
 
         // Vị trí, Chân chống & Cao độ Z (Cột Giữa - Data)
         [ObservableProperty] private double _elevationZ = 0.0;
@@ -64,6 +68,9 @@ namespace RevitScaffoldingTool.ViewModels
         [ObservableProperty] private bool _checkCase31 = true;
         [ObservableProperty] private bool _checkCase32 = true;
         [ObservableProperty] private bool _checkCase33 = true;
+        [ObservableProperty] private bool _checkCase41 = true;
+        [ObservableProperty] private bool _checkCase42 = true;
+        [ObservableProperty] private bool _checkCase43 = true;
 
         // Trạng thái thực thi
         [ObservableProperty] private string _statusMessage = "Sẵn sàng thi công giàn giáo ALINCO (Dark Theme).";
@@ -132,6 +139,9 @@ namespace RevitScaffoldingTool.ViewModels
                 CheckCase31 = s.CheckCase31;
                 CheckCase32 = s.CheckCase32;
                 CheckCase33 = s.CheckCase33;
+                CheckCase41 = s.CheckCase41;
+                CheckCase42 = s.CheckCase42;
+                CheckCase43 = s.CheckCase43;
             }
             catch
             {
@@ -174,6 +184,9 @@ namespace RevitScaffoldingTool.ViewModels
                 s.CheckCase31 = CheckCase31;
                 s.CheckCase32 = CheckCase32;
                 s.CheckCase33 = CheckCase33;
+                s.CheckCase41 = CheckCase41;
+                s.CheckCase42 = CheckCase42;
+                s.CheckCase43 = CheckCase43;
                 s.Save();
             }
             catch
@@ -561,14 +574,21 @@ namespace RevitScaffoldingTool.ViewModels
                     }
                 }
                 bool isSquareBay = Math.Abs(matchedBay - wB) <= 50.0;
-                if (isSquareBay) return "TH 3.2";
-
                 double distFromStart = s - bayStart;
-                if (distFromStart > 300.0)
+
+                if (cross > 0)
                 {
-                    return "TH 3.3";
+                    if (isSquareBay) return "TH 3.2";
+                    if (distFromStart > 300.0) return "TH 3.3";
+                    return "TH 3.1";
                 }
-                return "TH 3.1";
+                else
+                {
+                    // Nhánh rẽ B rẽ phải / Mirrored mặt trong phía ngược TH3 => TH 4
+                    if (isSquareBay) return "TH 4.2";
+                    if (distFromStart > 300.0) return "TH 4.3";
+                    return "TH 4.1";
+                }
             }
 
             // Kiểm tra vị trí dọc sMid phải nằm gần cuối dãy A (trong nhịp cuối hoặc vươn ra ngoài đầu dãy A)
@@ -800,5 +820,14 @@ namespace RevitScaffoldingTool.ViewModels
 
         [RelayCommand]
         private Task BuildCase33Async() => RunBuildModeAsync(-12, "TH 3.3 (L0 ⇒ L1): Khớp Ngã Ba Lệch Phải (Cấy Cột Trái)");
+
+        [RelayCommand]
+        private Task BuildCase41Async() => RunBuildModeAsync(-13, "TH 4.1 (L0 ⇒ L1): Ngã Ba Mirrored (Mặt Trong Phía Ngược)");
+
+        [RelayCommand]
+        private Task BuildCase42Async() => RunBuildModeAsync(-14, "TH 4.2 (L0 ⇒ L1): Ngã Ba Ô Vuông Mirrored");
+
+        [RelayCommand]
+        private Task BuildCase43Async() => RunBuildModeAsync(-15, "TH 4.3 (L0 ⇒ L1): Ngã Ba Lệch Phải Mirrored");
     }
 }

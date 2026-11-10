@@ -109,10 +109,16 @@ namespace RevitScaffoldingTool
 
                     // Mặt trước (Y = y0):
                     // 1) Cửa ngõ [xJunc, xR] (W mm): Mở thông suốt làm lối đi sang nhánh rẽ B
-                    var bbDoor = PlaceInstance(doc, sym1, level, new XYZ(MmToFt(xJunc), MmToFt(y0), MmToFt(z0)), 0, "l", W);
+                    // KHÔNG đặt ván lót sym1 qua cửa ngõ để lối đi thông thoáng
                     var lgH1Door = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(y0), MmToFt(zH1)), 0, "l", W);
-                    if (bbDoor != null) placedIds.Add(bbDoor.Id.GetIdValue());
                     if (lgH1Door != null) placedIds.Add(lgH1Door.Id.GetIdValue());
+
+                    for (int s = 0; s < storyCount; s++)
+                    {
+                        double sDeck = z0 + jackH + 1730.0 + s * 1800.0;
+                        var trDoorDeck = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(y0), MmToFt(sDeck)), 0, "l", W);
+                        if (trDoorDeck != null) placedIds.Add(trDoorDeck.Id.GetIdValue());
+                    }
 
                     if (opts != null && opts.HasTopTransom)
                     {
@@ -285,6 +291,8 @@ namespace RevitScaffoldingTool
 
             // =========================================================================
             // PHẦN E: ĐÓNG ĐẦU HỒI ĐỈNH NHÁNH RẼ (Y = yTop)
+            // Lưu ý: trFoot, trDeck và trTop tại yTop đã được dựng ở cuối vòng lặp nhịp trên
+            // Tại đây chỉ bổ sung lan can bảo vệ kép và ván chắn biên đầu hồi, không đè trùng
             // =========================================================================
             for (int s = 0; s < storyCount; s++)
             {
@@ -292,10 +300,8 @@ namespace RevitScaffoldingTool
                 double zH6 = z0 + jackH + 2180.0 + s * 1800.0;
                 double zH7 = z0 + jackH + 2630.0 + s * 1800.0;
 
-                var trTopDeck = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(yTop), MmToFt(sDeck)), 0, "l", W);
                 var trTopH6 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(yTop), MmToFt(zH6)), 0, "l", W);
                 var trTopH7 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(yTop), MmToFt(zH7)), 0, "l", W);
-                if (trTopDeck != null) placedIds.Add(trTopDeck.Id.GetIdValue());
                 if (trTopH6 != null) placedIds.Add(trTopH6.Id.GetIdValue());
                 if (trTopH7 != null) placedIds.Add(trTopH7.Id.GetIdValue());
 
@@ -304,12 +310,6 @@ namespace RevitScaffoldingTool
                     var tbTop = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xJunc), MmToFt(yTop - 66.0), MmToFt(sDeck)), 0, "l", W);
                     if (tbTop != null) placedIds.Add(tbTop.Id.GetIdValue());
                 }
-            }
-
-            if (opts != null && opts.HasTopTransom)
-            {
-                var trEndTop = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(yTop), MmToFt(topZ)), 0, "l", W);
-                if (trEndTop != null) placedIds.Add(trEndTop.Id.GetIdValue());
             }
 
             return null;
@@ -403,6 +403,13 @@ namespace RevitScaffoldingTool
                         var lgTopFront = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(px), MmToFt(y0), MmToFt(topZ)), 0, "l", bayLen);
                         if (lgTopBack != null) placedIds.Add(lgTopBack.Id.GetIdValue());
                         if (lgTopFront != null) placedIds.Add(lgTopFront.Id.GetIdValue());
+                    }
+
+                    for (int s = 0; s < storyCount; s++)
+                    {
+                        double sDeck = z0 + jackH + 1730.0 + s * 1800.0;
+                        var trDoorDeck = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(px), MmToFt(y0), MmToFt(sDeck)), 0, "l", bayLen);
+                        if (trDoorDeck != null) placedIds.Add(trDoorDeck.Id.GetIdValue());
                     }
 
                     for (int s = 0; s < storyCount; s++)
@@ -535,6 +542,8 @@ namespace RevitScaffoldingTool
 
             // =========================================================================
             // PHẦN E: ĐÓNG ĐẦU HỒI ĐỈNH NHÁNH RẼ (Y = yTop)
+            // Lưu ý: trFoot, trDeck và trTop tại yTop đã được dựng ở cuối vòng lặp nhịp trên
+            // Tại đây chỉ bổ sung lan can bảo vệ kép và ván chắn biên đầu hồi, không đè trùng
             // =========================================================================
             for (int s = 0; s < storyCount; s++)
             {
@@ -542,10 +551,8 @@ namespace RevitScaffoldingTool
                 double zH6 = z0 + jackH + 2180.0 + s * 1800.0;
                 double zH7 = z0 + jackH + 2630.0 + s * 1800.0;
 
-                var trTopDeck = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(yTop), MmToFt(sDeck)), 0, "l", W);
                 var trTopH6 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(yTop), MmToFt(zH6)), 0, "l", W);
                 var trTopH7 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(yTop), MmToFt(zH7)), 0, "l", W);
-                if (trTopDeck != null) placedIds.Add(trTopDeck.Id.GetIdValue());
                 if (trTopH6 != null) placedIds.Add(trTopH6.Id.GetIdValue());
                 if (trTopH7 != null) placedIds.Add(trTopH7.Id.GetIdValue());
 
@@ -554,12 +561,6 @@ namespace RevitScaffoldingTool
                     var tbTop = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xJunc), MmToFt(yTop - 66.0), MmToFt(sDeck)), 0, "l", W);
                     if (tbTop != null) placedIds.Add(tbTop.Id.GetIdValue());
                 }
-            }
-
-            if (opts != null && opts.HasTopTransom)
-            {
-                var trEndTop = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xJunc), MmToFt(yTop), MmToFt(topZ)), 0, "l", W);
-                if (trEndTop != null) placedIds.Add(trEndTop.Id.GetIdValue());
             }
 
             return null;
@@ -698,6 +699,13 @@ namespace RevitScaffoldingTool
                     {
                         var lgTopJunc = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xL), MmToFt(y0), MmToFt(topZ)), 0, "l", W);
                         if (lgTopJunc != null) placedIds.Add(lgTopJunc.Id.GetIdValue());
+                    }
+
+                    for (int s = 0; s < storyCount; s++)
+                    {
+                        double sDeck = z0 + jackH + 1730.0 + s * 1800.0;
+                        var trDoorDeck = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xL), MmToFt(y0), MmToFt(sDeck)), 0, "l", W);
+                        if (trDoorDeck != null) placedIds.Add(trDoorDeck.Id.GetIdValue());
                     }
 
                     for (int s = 0; s < storyCount; s++)
@@ -841,6 +849,8 @@ namespace RevitScaffoldingTool
 
             // =========================================================================
             // PHẦN C: ĐÓNG ĐẦU HỒI ĐỈNH NHÁNH RẼ (Y = yTop)
+            // Lưu ý: trFoot, trDeck và trTop tại yTop đã được dựng ở cuối vòng lặp nhịp trên
+            // Tại đây chỉ bổ sung lan can bảo vệ kép và ván chắn biên đầu hồi, không đè trùng
             // =========================================================================
             for (int s = 0; s < storyCount; s++)
             {
@@ -848,10 +858,8 @@ namespace RevitScaffoldingTool
                 double zH6 = z0 + jackH + 2180.0 + s * 1800.0;
                 double zH7 = z0 + jackH + 2630.0 + s * 1800.0;
 
-                var trTopDeck = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xL), MmToFt(yTop), MmToFt(sDeck)), 0, "l", W);
                 var trTopH6 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xL), MmToFt(yTop), MmToFt(zH6)), 0, "l", W);
                 var trTopH7 = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xL), MmToFt(yTop), MmToFt(zH7)), 0, "l", W);
-                if (trTopDeck != null) placedIds.Add(trTopDeck.Id.GetIdValue());
                 if (trTopH6 != null) placedIds.Add(trTopH6.Id.GetIdValue());
                 if (trTopH7 != null) placedIds.Add(trTopH7.Id.GetIdValue());
 
@@ -860,12 +868,6 @@ namespace RevitScaffoldingTool
                     var tbTop = PlaceInstance(doc, sym7, level, new XYZ(MmToFt(xL), MmToFt(yTop - 66.0), MmToFt(sDeck)), 0, "l", W);
                     if (tbTop != null) placedIds.Add(tbTop.Id.GetIdValue());
                 }
-            }
-
-            if (opts != null && opts.HasTopTransom)
-            {
-                var trEndTop = PlaceInstance(doc, sym4, level, new XYZ(MmToFt(xL), MmToFt(yTop), MmToFt(topZ)), 0, "l", W);
-                if (trEndTop != null) placedIds.Add(trEndTop.Id.GetIdValue());
             }
 
             return null;

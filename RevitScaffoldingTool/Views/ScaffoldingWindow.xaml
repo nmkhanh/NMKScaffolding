@@ -557,7 +557,7 @@
                         </Grid>
 
                         <!-- TH 3.3: CheckBox 9 + Button -->
-                        <Grid Margin="0,0,0,2">
+                        <Grid Margin="0,0,0,5">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="28"/>
                                 <ColumnDefinition Width="*"/>
@@ -568,6 +568,48 @@
                                     Command="{Binding BuildCase33Command}" 
                                     Height="32" Background="#0F766E"
                                     ToolTip="TH 3.3: Nhánh rẽ B nằm lệch phải trong nhịp 1800 mm; Cột phải dùng chung, cấy cột phụ mép trái tại xStart + 600 mm (xEnd - 1200 mm)."/>
+                        </Grid>
+
+                        <!-- TH 4.1: CheckBox 10 + Button -->
+                        <Grid Margin="0,0,0,5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="28"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0" IsChecked="{Binding CheckCase41, Mode=TwoWay}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                      ToolTip="Bật/Tắt TH 4.1 (dự phòng)"/>
+                            <Button Grid.Column="1" Content="TH 4.1 (L0 ⇒ L1): Ngã Ba Mirrored (Mặt Trong Phía Ngược)" 
+                                    Command="{Binding BuildCase41Command}" 
+                                    Height="32" Background="#BE185D"
+                                    ToolTip="TH 4.1: Ngã ba chữ T mirrored; Vách phải là mặt trong (lan can kép Family 4), vách trái là mặt ngoài (giằng chéo Family 5)."/>
+                        </Grid>
+
+                        <!-- TH 4.2: CheckBox 11 + Button -->
+                        <Grid Margin="0,0,0,5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="28"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0" IsChecked="{Binding CheckCase42, Mode=TwoWay}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                      ToolTip="Bật/Tắt TH 4.2 (dự phòng)"/>
+                            <Button Grid.Column="1" Content="TH 4.2 (L0 ⇒ L1): Ngã Ba Ô Vuông Mirrored" 
+                                    Command="{Binding BuildCase42Command}" 
+                                    Height="32" Background="#9D174D"
+                                    ToolTip="TH 4.2: Nhịp ngã ba là ô vuông W x W mirrored; Vách phải là mặt trong (lan can kép Family 4), vách trái là mặt ngoài (giằng chéo Family 5)."/>
+                        </Grid>
+
+                        <!-- TH 4.3: CheckBox 12 + Button -->
+                        <Grid Margin="0,0,0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="28"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0" IsChecked="{Binding CheckCase43, Mode=TwoWay}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                      ToolTip="Bật/Tắt TH 4.3 (dự phòng)"/>
+                            <Button Grid.Column="1" Content="TH 4.3 (L0 ⇒ L1): Ngã Ba Lệch Phải Mirrored" 
+                                    Command="{Binding BuildCase43Command}" 
+                                    Height="32" Background="#831843"
+                                    ToolTip="TH 4.3: Nhánh rẽ B lệch phải mirrored; Cột phải dùng chung, cấy cột trái; Vách phải là mặt trong, vách trái là mặt ngoài."/>
                         </Grid>
 
                     </StackPanel>

@@ -302,6 +302,21 @@ namespace RevitScaffoldingTool
                         string err = ExecuteCase3_3(doc, opts, defaultLevel, placedIds);
                         if (!string.IsNullOrEmpty(err)) { tx.RollBack(); res.Message = "Lỗi Trường Hợp 3.3: " + err; return res; }
                     }
+                    else if (opts.Mode == -13)
+                    {
+                        string err = ExecuteCase4_1(doc, opts, defaultLevel, placedIds);
+                        if (!string.IsNullOrEmpty(err)) { tx.RollBack(); res.Message = "Lỗi Trường Hợp 4.1: " + err; return res; }
+                    }
+                    else if (opts.Mode == -14)
+                    {
+                        string err = ExecuteCase4_2(doc, opts, defaultLevel, placedIds);
+                        if (!string.IsNullOrEmpty(err)) { tx.RollBack(); res.Message = "Lỗi Trường Hợp 4.2: " + err; return res; }
+                    }
+                    else if (opts.Mode == -15)
+                    {
+                        string err = ExecuteCase4_3(doc, opts, defaultLevel, placedIds);
+                        if (!string.IsNullOrEmpty(err)) { tx.RollBack(); res.Message = "Lỗi Trường Hợp 4.3: " + err; return res; }
+                    }
                     else
                     {
                         string err = ExecuteMultiBay(doc, opts, defaultLevel, placedIds);
@@ -317,6 +332,12 @@ namespace RevitScaffoldingTool
 
                     string title = opts.Mode == -9 ? "BUTTON RUN (THEO BẢNG TABLE)" :
                                    opts.Mode == -8 ? "MASTER 6 CORNERS" :
+                                   opts.Mode == -13 ? "Trường Hợp 4.1 (Ngã Ba Mirrored)" :
+                                   opts.Mode == -14 ? "Trường Hợp 4.2 (Ngã Ba Ô Vuông Mirrored)" :
+                                   opts.Mode == -15 ? "Trường Hợp 4.3 (Ngã Ba Lệch Phải Mirrored)" :
+                                   opts.Mode == -10 ? "Trường Hợp 3.1 (Ngã Ba Chữ T)" :
+                                   opts.Mode == -11 ? "Trường Hợp 3.2 (Ngã Ba Ô Vuông)" :
+                                   opts.Mode == -12 ? "Trường Hợp 3.3 (Ngã Ba Lệch Phải)" :
                                    opts.Mode == -2 ? "Trường Hợp 1.1 (+Y Mép Ngoài Phẳng)" :
                                    opts.Mode == -4 ? "Trường Hợp 1.2 (+X Thu 1200x1200)" :
                                    opts.Mode == -5 ? "Trường Hợp 1.3 (-Y Giằng Chéo Thu Ngắn 600)" :
